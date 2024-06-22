@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2018 The LineageOS Project
+     Copyright (C) 2021 ECORP
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<resources>
+
+    <color name="color_error">#FF5630</color>
+
+    <!-- Default /e/ themes color for dark theme
+         These colors are the ones which will be overridden by RRO packages to change the theme across the device.
+     -->
+
+   <color name="color_default_blue1">#5DB2FF</color>
+   <color name="color_default_green1">#34A853</color>
+
+  <color name="color_default_primary">#272727</color>
+  <color name="color_default_primary_dark">#272727</color>
+  <color name="color_default_accent">#5DB2FF</color>
+  <color name="color_default_primary_text">#CCFFFFFF</color>
+  <color name="color_default_secondary_text">#8CFFFFFF</color>
+  <color name="color_default_background">#121212</color>
+  <color name="color_default_foreground">#1E1E1E</color>
+  <color name="color_default_foreground2">#383838</color>
+  <color name="color_default_selector">#394456</color>
+  <color name="color_default_divider">#696B6C</color>
+  <color name="color_default_selector_background">#145DB2FF</color>
+  <color name="color_default_icon">#A2A2A2</color>
+
+</resources>

@@ -17,4 +17,36 @@
 <resources>
 
     <color name="color_error">#FF5630</color>
+
+    <!-- Default /e/ themes color -->
+
+    <color name="color_default_red1">#FB3846</color>
+    <color name="color_default_blue1">#0086FF</color>
+    <color name="color_default_blue2">#24527E</color>
+    <color name="color_default_blue3">#0088ED</color>
+    <color name="color_default_orange1">#FC7222</color>
+    <color name="color_default_gray1">#C8CED0</color>
+    <color name="color_default_gray2">#848484</color>
+    <color name="color_default_green1">#38D874</color>
+
+    <color name="color_default_light_grey">#F0F0F0</color>
+    <color name="color_default_deep_grey">#ECECEC</color>
+    <color name="color_default_light_black">#1E1E1E</color>
+
+    <!-- Default /e/ themes color for light theme
+         These colors are the ones which will be overridden by RRO packages to change the theme across the device.
+     -->
+    <color name="color_default_primary">#FFFFFF</color>
+    <color name="color_default_primary_dark">#FFFFFF</color>
+    <color name="color_default_accent">@color/color_default_blue1</color>
+    <color name="color_default_primary_text">#CC000000</color>
+    <color name="color_default_secondary_text">#8C000000</color>
+    <color name="color_default_background">#FAFAFA</color>
+    <color name="color_default_foreground">#FFFFFF</color>
+    <color name="color_default_foreground2">#EEEEEE</color>
+    <color name="color_default_selector">#EAF5FD</color>
+    <color name="color_default_divider">#CFD8DC</color>
+    <color name="color_default_view_on_accent">#FFFFFF</color>
+    <color name="color_default_selector_background">#140086FF</color>
+    <color name="color_default_icon">#717171</color>
 </resources>

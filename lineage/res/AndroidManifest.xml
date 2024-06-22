@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
 /**
- * Copyright (C) 2015 The CyanogenMod Project
- *               2017-2022 The LineageOS Project
+ * Copyright 2015, CyanogenMod Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +16,7 @@
  * limitations under the License.
  */
 -->
-<manifest
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     package="lineageos.platform"
     coreApp="true" android:sharedUserId="android.uid.system"
@@ -27,6 +25,7 @@
     <protected-broadcast android:name="lineageos.intent.action.SCREEN_CAMERA_GESTURE" />
     <protected-broadcast android:name="lineageos.intent.action.INITIALIZE_LINEAGE_HARDWARE" />
     <protected-broadcast android:name="lineageos.intent.action.INITIALIZE_LIVEDISPLAY" />
+    <protected-broadcast android:name="lineageos.intent.action.ACTION_AUDIO_SESSIONS_CHANGED" />
     <protected-broadcast android:name="lineageos.platform.intent.action.PROFILE_SELECTED" />
 
     <protected-broadcast android:name="lineageos.intent.action.UPDATE_PREFERENCE" />
@@ -63,6 +62,55 @@
                 android:description="@string/permdesc_writeSecureSettings"
                 android:protectionLevel="signature|privileged|development" />
 
+    <!-- Permission for adding/removing applications to protected apps
+          <p>Not for use by third-party applications. -->
+    <permission
+                android:name="lineageos.permission.PROTECTED_APP"
+                android:label="@string/permlab_protectedApp"
+                android:description="@string/permdesc_protectedApp"
+                android:protectionLevel="signature|privileged" />
+
+    <!-- Allows low-level access to performance management.
+         <p>Not for use by third-party applications. -->
+    <permission android:name="lineageos.permission.PERFORMANCE_ACCESS"
+                android:label="@string/permlab_perfAccess"
+                android:description="@string/permdesc_perfAccessDesc"
+                android:protectionLevel="signature|privileged" />
+
+    <!-- Allows an application to read the weather content from the provider-->
+    <permission android:name="lineageos.permission.READ_WEATHER"
+                android:label="@string/permlab_weather_read"
+                android:description="@string/permdesc_weather_read"
+                android:protectionLevel="normal"/>
+
+    <!-- Allows an application to update the content of the weather provider
+        <p>Not for use by third-party applications. -->
+    <permission android:name="lineageos.permission.WRITE_WEATHER"
+                android:label="@string/permlab_weather_write"
+                android:description="@string/permdesc_weather_write"
+                android:protectionLevel="signature|privileged" />
+
+    <!-- Allows an application to be identified as a weather provider service -->
+    <permission android:name="lineageos.permission.BIND_WEATHER_PROVIDER_SERVICE"
+                android:label="@string/permlab_weather_bind"
+                android:description="@string/permdesc_weather_bind"
+                android:protectionLevel="signature"/>
+
+    <!-- Allows an application to observe system-wide changes to audio sessions
+         @hide -->
+    <permission android:name="lineageos.permission.OBSERVE_AUDIO_SESSIONS"
+                android:label="@string/permlab_observe_audio_sessions"
+                android:description="@string/permdesc_observe_audio_sessions"
+                android:protectionLevel="normal"/>
+
+    <!-- Allows an application to access the weather service.
+        <p>Although the protection is normal, this permission should be required ONLY by those apps
+        meant to do something meaningful with the data provided by the service (LockClock, SysUI)-->
+    <permission android:name="lineageos.permission.ACCESS_WEATHER_MANAGER"
+                android:label="@string/permlab_weather_access_mgr"
+                android:description="@string/permdesc_weather_access_mgr"
+                android:protectionLevel="normal"/>
+
     <!-- Allows an application to manage LiveDisplay -->
     <permission android:name="lineageos.permission.MANAGE_LIVEDISPLAY"
                 android:label="@string/permlab_manageLiveDisplay"
@@ -81,10 +129,21 @@
                  android:persistent="true"
                  android:hasCode="false"
                  android:label="@string/lineageos_system_label"
-                 android:icon="@mipmap/ic_launcher"
                  android:allowClearUserData="false"
                  android:killAfterRestore="false"
                  android:supportsRtl="true"/>
+
+    <!-- Permission for reading the DataUsage database -->
+    <permission android:name="lineageos.permission.READ_DATAUSAGE"
+                android:label="@string/permlab_dataUsageRead"
+                android:description="@string/permdesc_dataUsageRead"
+                android:protectionLevel="signature|privileged" />
+
+    <!-- Permission for writing the DataUsage database -->
+    <permission android:name="lineageos.permission.WRITE_DATAUSAGE"
+                android:label="@string/permlab_dataUsageWrite"
+                android:description="@string/permdesc_dataUsageWrite"
+                android:protectionLevel="signature|privileged" />
 
     <!-- Permission for managing remote preferences -->
     <permission android:name="lineageos.permission.MANAGE_REMOTE_PREFERENCES"

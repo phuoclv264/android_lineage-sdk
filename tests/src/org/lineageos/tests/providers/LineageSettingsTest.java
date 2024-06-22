@@ -138,7 +138,7 @@ public class LineageSettingsTest extends AndroidTestCase{
         sIsOnChangedCalled = false;
         sExpectedUriChange = LineageSettings.Global.getUriFor(key);
         mContentResolver.registerContentObserver(sExpectedUriChange, false, mTestObserver,
-                UserHandle.USER_SYSTEM);
+                UserHandle.USER_OWNER);
 
         // replace
         final String expectedReplaceValue = "globalTestValue2";

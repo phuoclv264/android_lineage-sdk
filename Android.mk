@@ -1,6 +1,5 @@
-#
 # Copyright (C) 2015 The CyanogenMod Project
-#               2017-2022 The LineageOS Project
+# Copyright (C) 2017-2019 The LineageOS Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 LOCAL_PATH := $(call my-dir)
-
-include $(CLEAR_VARS)
 
 # We have a special case here where we build the library's resources
 # independently from its code, so we need to find where the resource
@@ -29,7 +25,7 @@ include $(CLEAR_VARS)
 lineage_platform_res := APPS/org.lineageos.platform-res_intermediates/aapt
 
 # List of packages used in lineage-api-stubs
-lineage_stub_packages := lineageos.app:lineageos.content:lineageos.hardware:lineageos.media:lineageos.os:lineageos.preference:lineageos.profiles:lineageos.providers:lineageos.platform:lineageos.util:lineageos.trust
+lineage_stub_packages := lineageos.app:lineageos.content:lineageos.hardware:lineageos.media:lineageos.os:lineageos.preference:lineageos.profiles:lineageos.providers:lineageos.platform:lineageos.power:lineageos.util:lineageos.weather:lineageos.weatherservice:lineageos.style:lineageos.trust
 
 lineage_framework_module := $(LOCAL_INSTALLED_MODULE)
 
@@ -62,6 +58,32 @@ LOCAL_JAR_EXCLUDE_PACKAGES := $(lineage_sdk_exclude_files)
 LOCAL_JAR_EXCLUDE_FILES := none
 
 LOCAL_STATIC_JAVA_LIBRARIES := org.lineageos.platform.sdk
+
+include $(BUILD_STATIC_JAVA_LIBRARY)
+$(LOCAL_MODULE) : $(built_aar)
+
+# ===========================================================
+
+# e sdk
+# ============================================================
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := e-sdk.aar
+
+LOCAL_JACK_ENABLED := disabled
+
+LOCAL_CONSUMER_PROGUARD_FILE := $(LOCAL_PATH)/sdk/proguard.txt
+
+LOCAL_RESOURCE_DIR += $(addprefix $(LOCAL_PATH)/, lineage/res/res)
+LOCAL_MANIFEST_FILE := lineage/res/AndroidManifest.xml
+
+lineage_sdk_exclude_files := 'lineageos/'
+LOCAL_JAR_EXCLUDE_PACKAGES := $(lineage_sdk_exclude_files)
+LOCAL_JAR_EXCLUDE_FILES := none
+
+LOCAL_JAVA_LIBRARIES := \
+    $(lineage_sdk_LOCAL_JAVA_LIBRARIES)
+
 
 include $(BUILD_STATIC_JAVA_LIBRARY)
 $(LOCAL_MODULE) : $(built_aar)

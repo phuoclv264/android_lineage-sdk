@@ -1,6 +1,5 @@
 /**
- * Copyright (C) 2015, The CyanogenMod Project
- *               2017-2022 The LineageOS Project
+ * Copyright (c) 2015, The CyanogenMod Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,11 +63,38 @@ public final class LineageContextConstants {
     public static final String LINEAGE_PERFORMANCE_SERVICE = "lineageperformance";
 
     /**
+     * Manages composed icons
+     *
+     * @hide
+     */
+    public static final String LINEAGE_ICON_CACHE_SERVICE = "lineageiconcache";
+
+    /**
+     * Use with {@link android.content.Context#getSystemService} to retrieve a
+     * {@link lineageos.weather.LineageWeatherManager} to manage the weather service
+     * settings and request weather updates
+     *
+     * @see android.content.Context#getSystemService
+     * @see lineageos.weather.LineageWeatherManager
+     *
+     * @hide
+     */
+    public static final String LINEAGE_WEATHER_SERVICE = "lineageweather";
+
+    /**
      * Manages display color adjustments
      *
      * @hide
      */
     public static final String LINEAGE_LIVEDISPLAY_SERVICE = "lineagelivedisplay";
+
+
+    /**
+     * Manages enhanced audio functionality
+     *
+     * @hide
+     */
+    public static final String LINEAGE_AUDIO_SERVICE = "lineageaudio";
 
     /**
      * Use with {@link android.content.Context#getSystemService} to retrieve a
@@ -80,13 +106,6 @@ public final class LineageContextConstants {
      * @hide
      */
     public static final String LINEAGE_TRUST_INTERFACE = "lineagetrust";
-
-    /**
-     * Update power menu (GlobalActions)
-     *
-     * @hide
-     */
-    public static final String LINEAGE_GLOBAL_ACTIONS_SERVICE = "lineageglobalactions";
 
     /**
      * Features supported by the Lineage SDK.
@@ -115,6 +134,14 @@ public final class LineageContextConstants {
          */
         @SdkConstant(SdkConstant.SdkConstantType.FEATURE)
         public static final String PERFORMANCE = "org.lineageos.performance";
+
+        /**
+         * Feature for {@link PackageManager#getSystemAvailableFeatures} and
+         * {@link PackageManager#hasSystemFeature}: The device includes the lineage weather weather
+         * service utilized by the lineage sdk.
+         */
+        @SdkConstant(SdkConstant.SdkConstantType.FEATURE)
+        public static final String WEATHER_SERVICES = "org.lineageos.weather";
 
         /**
          * Feature for {@link PackageManager#getSystemAvailableFeatures} and
@@ -150,10 +177,10 @@ public final class LineageContextConstants {
 
         /**
          * Feature for {@link PackageManager#getSystemAvailableFeatures} and
-         * {@link PackageManager#hasSystemFeature}: The device includes the lineage globalactions
-         * service utilized by the lineage sdk and LineageParts.
+         * {@link PackageManager#hasSystemFeature}: The device includes the Lineage
+         * fingerprint in screen utilized by the lineage sdk.
          */
         @SdkConstant(SdkConstant.SdkConstantType.FEATURE)
-        public static final String GLOBAL_ACTIONS = "org.lineageos.globalactions";
+        public static final String FOD = "vendor.lineage.biometrics.fingerprint.inscreen";
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022 The LineageOS Project
+ * Copyright (C) 2018-2020 The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.SELinux;
@@ -39,7 +38,6 @@ import lineageos.providers.LineageSettings;
 import lineageos.trust.ITrustInterface;
 import lineageos.trust.TrustInterface;
 
-import android.hardware.usb.V1_3.IUsb;
 import vendor.lineage.trust.V1_0.IUsbRestrict;
 
 import java.text.ParseException;
@@ -60,20 +58,23 @@ public class TrustInterfaceService extends LineageSystemService {
     private static final String INTENT_PARTS = "org.lineageos.lineageparts.TRUST_INTERFACE";
     private static final String INTENT_ONBOARDING = "org.lineageos.lineageparts.TRUST_HINT";
 
-    private static final String TRUST_CHANNEL_ID = "TrustInterface";
-    private static final String TRUST_CHANNEL_ID_TV = "TrustInterface.tv";
-
+    private static final String CHANNEL_NAME = "TrustInterface";
     private static final int ONBOARDING_NOTIFCATION_ID = 89;
 
     private Context mContext;
     private NotificationManager mNotificationManager = null;
 
     private IUsbRestrict mUsbRestrictor = null;
-    private IUsb mUsb = null;
 
     public TrustInterfaceService(Context context) {
         super(context);
         mContext = context;
+        if (context.getPackageManager().hasSystemFeature(LineageContextConstants.Features.TRUST)) {
+            publishBinderService(LineageContextConstants.LINEAGE_TRUST_INTERFACE, mService);
+        } else {
+            Log.wtf(TAG, "Lineage Trust service started by system server but feature xml not" +
+                    " declared. Not publishing binder service!");
+        }
     }
 
     @Override
@@ -83,40 +84,22 @@ public class TrustInterfaceService extends LineageSystemService {
 
     @Override
     public void onStart() {
-        if (mContext.getPackageManager().hasSystemFeature(LineageContextConstants.Features.TRUST)) {
-            publishBinderService(LineageContextConstants.LINEAGE_TRUST_INTERFACE, mService);
-        } else {
-            Log.wtf(TAG, "Lineage Trust service started by system server but feature xml not" +
-                    " declared. Not publishing binder service!");
+        mNotificationManager = mContext.getSystemService(NotificationManager.class);
+
+        try {
+            mUsbRestrictor = IUsbRestrict.getService();
+        } catch (NoSuchElementException | RemoteException e) {
+            // ignore, the hal is not available
         }
-    }
 
-    @Override
-    public void onBootPhase(int phase) {
-        if (phase == PHASE_BOOT_COMPLETED) {
-            mNotificationManager = mContext.getSystemService(NotificationManager.class);
-
-            try {
-                mUsb = IUsb.getService();
-            } catch (NoSuchElementException | RemoteException e) {
-                // ignore, the hal is not available
-            }
-
-            try {
-                mUsbRestrictor = IUsbRestrict.getService();
-            } catch (NoSuchElementException | RemoteException e) {
-                // ignore, the hal is not available
-            }
-
-            // Onboard
-            if (!hasOnboardedUser()) {
-                postOnBoardingNotification();
-                registerLocaleChangedReceiver();
-                return;
-            }
-
-            runTestInternal();
+        // Onboard
+        if (!hasOnboardedUser()) {
+            postOnBoardingNotification();
+            registerLocaleChangedReceiver();
+            return;
         }
+
+        runTestInternal();
     }
 
     /* Public methods implementation */
@@ -137,16 +120,14 @@ public class TrustInterfaceService extends LineageSystemService {
 
         Intent mainIntent = new Intent(INTENT_PARTS);
         mainIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent pMainIntent = PendingIntent.getActivity(mContext, 0, mainIntent,
-                PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pMainIntent = PendingIntent.getActivity(mContext, 0, mainIntent, 0);
 
         Intent actionIntent = new Intent(INTENT_PARTS);
         actionIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         actionIntent.putExtra(":settings:fragment_args_key", "trust_category_alerts");
-        PendingIntent pActionIntent = PendingIntent.getActivity(mContext, 0, actionIntent,
-                PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pActionIntent = PendingIntent.getActivity(mContext, 0, actionIntent, 0);
 
-        Notification.Builder notification = new Notification.Builder(mContext, TRUST_CHANNEL_ID)
+        Notification.Builder notification = new Notification.Builder(mContext, CHANNEL_NAME)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setStyle(new Notification.BigTextStyle().bigText(message))
@@ -154,8 +135,7 @@ public class TrustInterfaceService extends LineageSystemService {
                 .setContentIntent(pMainIntent)
                 .addAction(R.drawable.ic_trust_notification_manage, action, pActionIntent)
                 .setColor(mContext.getColor(R.color.color_error))
-                .setSmallIcon(R.drawable.ic_warning)
-                .extend(new Notification.TvExtender().setChannelId(TRUST_CHANNEL_ID_TV));
+                .setSmallIcon(R.drawable.ic_warning);
 
         createNotificationChannelIfNeeded();
         mNotificationManager.notify(feature, notification.build());
@@ -172,7 +152,7 @@ public class TrustInterfaceService extends LineageSystemService {
     }
 
     private boolean hasUsbRestrictorInternal() {
-        return mUsb != null || mUsbRestrictor != null;
+        return mUsbRestrictor != null;
     }
 
     private boolean postOnBoardingNotification() {
@@ -180,17 +160,15 @@ public class TrustInterfaceService extends LineageSystemService {
         String message = mContext.getString(R.string.trust_notification_content_onboarding);
         Intent intent = new Intent(INTENT_ONBOARDING);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent pIntent = PendingIntent.getActivity(mContext, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pIntent = PendingIntent.getActivity(mContext, 0, intent, 0);
 
-        Notification.Builder notification = new Notification.Builder(mContext, TRUST_CHANNEL_ID)
+        Notification.Builder notification = new Notification.Builder(mContext, CHANNEL_NAME)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setStyle(new Notification.BigTextStyle().bigText(message))
                 .setAutoCancel(true)
                 .setContentIntent(pIntent)
-                .setSmallIcon(R.drawable.ic_trust)
-                .extend(new Notification.TvExtender().setChannelId(TRUST_CHANNEL_ID_TV));
+                .setSmallIcon(R.drawable.ic_trust);
 
         createNotificationChannelIfNeeded();
         mNotificationManager.notify(ONBOARDING_NOTIFCATION_ID, notification.build());
@@ -233,10 +211,6 @@ public class TrustInterfaceService extends LineageSystemService {
                 "You do not have permissions to use the Trust interface");
     }
 
-    private boolean isTv() {
-        return mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
-    }
-
     private boolean isWarningAllowed(int warning) {
         return (LineageSettings.Secure.getInt(mContext.getContentResolver(),
                 LineageSettings.Secure.TRUST_WARNINGS,
@@ -262,16 +236,16 @@ public class TrustInterfaceService extends LineageSystemService {
     }
 
     private void createNotificationChannelIfNeeded() {
-        String id = !isTv() ? TRUST_CHANNEL_ID : TRUST_CHANNEL_ID_TV;
-        NotificationChannel channel = mNotificationManager.getNotificationChannel(id);
+        NotificationChannel channel = mNotificationManager.getNotificationChannel(CHANNEL_NAME);
         if (channel != null) {
             return;
         }
 
         String name = mContext.getString(R.string.trust_notification_channel);
         int importance = NotificationManager.IMPORTANCE_HIGH;
-        NotificationChannel trustChannel = new NotificationChannel(id, name, importance);
-        trustChannel.setBlockable(true);
+        NotificationChannel trustChannel = new NotificationChannel(CHANNEL_NAME,
+                name, importance);
+        trustChannel.setBlockableSystem(true);
         mNotificationManager.createNotificationChannel(trustChannel);
     }
 

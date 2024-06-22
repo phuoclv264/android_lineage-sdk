@@ -236,12 +236,7 @@ public class ProfileManager {
         } else {
             mContext = context;
         }
-
-        try {
-            sService = getService();
-        } catch (RemoteException e) {
-            sService = null;
-        }
+        sService = getService();
 
         if (context.getPackageManager().hasSystemFeature(
                 lineageos.app.LineageContextConstants.Features.PROFILES) && sService == null) {
@@ -264,19 +259,25 @@ public class ProfileManager {
     }
 
     /** @hide */
-    static public IProfileManager getService() throws RemoteException {
+    static public IProfileManager getService() {
         if (sService != null) {
             return sService;
         }
         IBinder b = ServiceManager.getService(LineageContextConstants.LINEAGE_PROFILE_SERVICE);
         sService = IProfileManager.Stub.asInterface(b);
-
-        if (sService == null) {
-            throw new RemoteException("Couldn't get " +
-                                      LineageContextConstants.LINEAGE_PROFILE_SERVICE +
-                                      " on binder");
-        }
         return sService;
+    }
+
+    /**
+     * @deprecated
+     */
+    @Deprecated
+    public void setActiveProfile(String profileName) {
+        try {
+            getService().setActiveProfileByName(profileName);
+        } catch (RemoteException e) {
+            Log.e(TAG, e.getLocalizedMessage(), e);
+        }
     }
 
     /**
@@ -338,6 +339,23 @@ public class ProfileManager {
         } catch (RemoteException e) {
             Log.e(TAG, e.getLocalizedMessage(), e);
         }
+    }
+
+    /**
+     * Get the {@link Profile} object by its literal name
+     * @param profileName name associated with the profile
+     * @return profile a {@link Profile} object
+     *
+     * @deprecated
+     */
+    @Deprecated
+    public Profile getProfile(String profileName) {
+        try {
+            return getService().getProfileByName(profileName);
+        } catch (RemoteException e) {
+            Log.e(TAG, e.getLocalizedMessage(), e);
+        }
+        return null;
     }
 
     /**

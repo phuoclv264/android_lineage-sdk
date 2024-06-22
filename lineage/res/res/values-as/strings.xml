@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
      Copyright (C) 2015 The CyanogenMod Project
-                   2017-2022 The LineageOS Project
+               (C) 2017 The LineageOS Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@
     <string name="permlab_modifyProfiles">ছিষ্টেম প্ৰ\'ফাইল সংশোধন কৰক</string>
     <string name="permdesc_modifyProfiles">এটা এপ্প্‌ক ছিষ্টেম প্ৰ\'ফাইল সংশোধন কৰিবলৈ অনুমতি দিয়ে</string>
     <string name="permlab_useHardwareFramework">হাৰ্ডৱেৰ ফ্ৰেমৱৰ্ক ব্যৱহাৰ কৰক</string>
+    <string name="permlab_protectedApp">প্ৰতিৰোধী এপ্প্‌ৰ পৰা এপ্প্‌ যোগ কৰক আৰু আঁতৰ কৰক</string>
+    <string name="permdesc_protectedApp">এটা এপ্প্‌ক অন্যান্য এপ্প্‌বোৰ প্ৰতিৰোধী হিচাপে চিহ্নিত কৰিবলৈ আৰু লক কৰিবলৈ অনুমতি দিয়ে।</string>
     <string name="profileNameDefault">ডিফল্ট</string>
     <string name="profileNameWork">কৰ্ম</string>
     <string name="profileNameHome">হোম</string>
@@ -31,6 +33,11 @@
     <string name="profileGroupEmail">ইমেইল</string>
     <string name="profileGroupSMS">SMS</string>
     <string name="wildcardProfile">অন্যান্য</string>
+    <string name="perf_profile_pwrsv">পাৱাৰ সংৰক্ষণ কৰক</string>
+    <string name="perf_profile_bal">সন্তুলিত</string>
+    <string name="perf_profile_perf">কাৰ্য্যকাৰিতা</string>
+    <string name="perf_profile_bias_power">কাৰ্যকাৰিতা</string>
+    <string name="perf_profile_bias_perf">দ্ৰুত</string>
     <string name="live_display_auto">স্বয়ংক্ৰিয়</string>
     <string name="live_display_auto_summary">সূৰ্যাস্ত আৰু সূৰ্যোদয়ৰ পাছত স্বয়ংক্ৰিয়ভাবে স্ক্ৰীণৰ ৰং তাপমাত্ৰা মিলাওক।</string>
     <string name="live_display_off">অফ</string>

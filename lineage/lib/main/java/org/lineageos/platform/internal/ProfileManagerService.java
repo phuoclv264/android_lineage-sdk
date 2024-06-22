@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2011-2015 CyanogenMod Project
- *               2017-2020 LineageOS Project
+ * Copyright (c) 2011-2015 CyanogenMod Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +24,7 @@ import android.database.ContentObserver;
 import android.net.Uri;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiSsid;
 import android.os.Message;
 import android.util.ArraySet;
 import com.android.internal.policy.IKeyguardService;
@@ -199,16 +199,6 @@ public class ProfileManagerService extends LineageSystemService {
         if (selectProfile) mActiveProfile.doSelect(mContext, mKeyguardService);
     }
 
-    private String removeDoubleQuotes(String string) {
-        final int length = string.length();
-        if (length >= 2) {
-            if (string.startsWith("\"") && string.endsWith("\"")) {
-                return string.substring(1, length - 1);
-            }
-        }
-        return string;
-    }
-
     private String getActiveSSID() {
         final WifiManager wifiManager
                 = (WifiManager) mContext.getSystemService(Context.WIFI_SERVICE);
@@ -216,7 +206,11 @@ public class ProfileManagerService extends LineageSystemService {
         if (wifiinfo == null) {
             return null;
         }
-        return removeDoubleQuotes(wifiinfo.getSSID());
+        final WifiSsid ssid = wifiinfo.getWifiSsid();
+        if (ssid == null) {
+            return null;
+        }
+        return ssid.toString();
     }
 
     private class ProfilesObserver extends ContentObserver {
@@ -237,6 +231,13 @@ public class ProfileManagerService extends LineageSystemService {
         super(context);
         mContext = context;
         mHandler = new Handler(mHandlerCallback);
+        if (context.getPackageManager().hasSystemFeature(
+                LineageContextConstants.Features.PROFILES)) {
+            publishBinderService(LineageContextConstants.LINEAGE_PROFILE_SERVICE, mService);
+        } else {
+            Log.wtf(TAG, "Lineage profile service started by system server but feature xml not" +
+                    " declared. Not publishing binder service!");
+        }
     }
 
     @Override
@@ -258,18 +259,12 @@ public class ProfileManagerService extends LineageSystemService {
                 org.lineageos.platform.internal.R.string.wildcardProfile,
                 mWildcardUUID);
 
+        initialize();
+
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_LOCALE_CHANGED);
         filter.addAction(Intent.ACTION_SHUTDOWN);
         mContext.registerReceiver(mIntentReceiver, filter);
-
-        if (mContext.getPackageManager().hasSystemFeature(
-                LineageContextConstants.Features.PROFILES)) {
-            publishBinderService(LineageContextConstants.LINEAGE_PROFILE_SERVICE, mService);
-        } else {
-            Log.wtf(TAG, "Lineage profile service started by system server but feature xml not" +
-                    " declared. Not publishing binder service!");
-        }
     }
 
     private void bindKeyguard() {
@@ -286,7 +281,6 @@ public class ProfileManagerService extends LineageSystemService {
     @Override
     public void onBootPhase(int phase) {
         if (phase == PHASE_ACTIVITY_MANAGER_READY) {
-            initialize();
             bindKeyguard();
         } else if (phase == PHASE_BOOT_COMPLETED) {
             mContext.getContentResolver().registerContentObserver(

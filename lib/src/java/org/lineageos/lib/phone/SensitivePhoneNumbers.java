@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2017 The Android Open Source Project
- * Copyright (C) 2017-2021 The LineageOS Project
+ * Copyright (C) 2017-2019 The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,34 +32,28 @@ import com.google.i18n.phonenumbers.Phonenumber;
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat;
 
-import org.lineageos.lib.phone.spn.Item;
-import org.lineageos.lib.phone.spn.SensitivePN;
-import org.lineageos.lib.phone.spn.SensitivePNS;
-import org.lineageos.lib.phone.spn.XmlParser;
-
+import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
-import javax.xml.datatype.DatatypeConfigurationException;
-
 public class SensitivePhoneNumbers {
     private final String LOG_TAG = this.getClass().getSimpleName();
 
-    public static final String SENSIBLE_PHONENUMBERS_FILE_PATH = "/product/etc/sensitive_pn.xml";
+    public static final String SENSIBLE_PHONENUMBERS_FILE_PATH = "etc/sensitive_pn.xml";
     private static final String ns = null;
 
     private static SensitivePhoneNumbers sInstance = null;
     private static boolean sNumbersLoaded;
 
-    private HashMap<String, ArrayList<Item>> mSensitiveNumbersMap = new HashMap<>();
+    private HashMap<String, ArrayList<String>> mSensitiveNumbersMap = new HashMap<>();
 
     private SensitivePhoneNumbers() { }
 
@@ -75,41 +69,57 @@ public class SensitivePhoneNumbers {
             return;
         }
 
-        File sensiblePNFile = new File(SENSIBLE_PHONENUMBERS_FILE_PATH);
-        FileInputStream sensiblePNInputStream;
+        FileReader sensiblePNReader;
+
+        File sensiblePNFile = new File(Environment.getRootDirectory(),
+                SENSIBLE_PHONENUMBERS_FILE_PATH);
 
         try {
-            sensiblePNInputStream = new FileInputStream(sensiblePNFile);
+            sensiblePNReader = new FileReader(sensiblePNFile);
         } catch (FileNotFoundException e) {
             Log.w(LOG_TAG, "Can not open " + sensiblePNFile.getAbsolutePath());
             return;
         }
 
         try {
-            for (SensitivePN sensitivePN : new XmlParser().read(sensiblePNInputStream).getSensitivePN()) {
-                String[] mccs = sensitivePN.getNetwork().split(",");
-                for (String mcc : mccs) {
-                    mSensitiveNumbersMap.put(mcc, new ArrayList(sensitivePN.getItem()));
-                }
-            }
-        } catch (DatatypeConfigurationException | IOException | XmlPullParserException e) {
+            XmlPullParser parser = Xml.newPullParser();
+            parser.setInput(sensiblePNReader);
+            parser.nextTag();
+
+            readSensitivePNS(parser);
+
+            sensiblePNReader.close();
+        } catch (IOException | XmlPullParserException e) {
             Log.w(LOG_TAG, "Exception in spn-conf parser", e);
         }
 
         sNumbersLoaded = true;
     }
 
-    public ArrayList<Item> getSensitivePnInfosForMcc(String mcc) {
-        loadSensiblePhoneNumbers();
-        return mSensitiveNumbersMap.getOrDefault(mcc, new ArrayList<Item>());
+    private void readSensitivePNS(XmlPullParser parser)
+                throws XmlPullParserException, IOException {
+        parser.require(XmlPullParser.START_TAG, ns, "sensitivePNS");
+        while (parser.next() != XmlPullParser.END_TAG) {
+            if (parser.getEventType() != XmlPullParser.START_TAG) {
+                continue;
+            }
+            String name = parser.getName();
+            if (!"sensitivePN".equals(name)) {
+                break;
+            }
+            SensitivePhoneNumber sensitivePN = SensitivePhoneNumber
+                    .readSensitivePhoneNumbers(parser);
+            String[] mccs = sensitivePN.getNetworkNumeric().split(",");
+            ArrayList<String> sensitive_nums = sensitivePN.getPhoneNumbers();
+            for (String mcc : mccs) {
+                mSensitiveNumbersMap.put(mcc, sensitive_nums);
+            }
+        }
     }
 
     public boolean isSensitiveNumber(Context context, String numberToCheck, int subId) {
-        String nationalNumber = formatNumberToNational(context, numberToCheck);
-        if (TextUtils.isEmpty(nationalNumber)) {
-            return false;
-        }
         loadSensiblePhoneNumbers();
+        String nationalNumber = formatNumberToNational(context, numberToCheck);
 
         SubscriptionManager subManager = context.getSystemService(SubscriptionManager.class);
         List<SubscriptionInfo> list = subManager.getActiveSubscriptionInfoList();
@@ -121,30 +131,16 @@ public class SensitivePhoneNumbers {
                     return true;
                 }
             }
-        }
-
-        // Fall back to check with the passed subId
-        TelephonyManager telephonyManager = context.getSystemService(TelephonyManager.class);
-        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-            subId = SubscriptionManager.getDefaultSubscriptionId();
-        }
-        telephonyManager = telephonyManager.createForSubscriptionId(subId);
-        String networkUsed = telephonyManager.getNetworkOperator();
-        if (!TextUtils.isEmpty(networkUsed)) {
-            String networkMCC = networkUsed.substring(0, 3);
-            if (isSensitiveNumber(nationalNumber, networkMCC)) {
-                return true;
+        } else {
+            // Fall back to check with the passed subId
+            TelephonyManager telephonyManager = context.getSystemService(TelephonyManager.class);
+            if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                subId = SubscriptionManager.getDefaultSubscriptionId();
             }
-        }
-
-        // Also try the sim's operator
-        if (telephonyManager.getSimState() == TelephonyManager.SIM_STATE_READY) {
-            String simOperator = telephonyManager.getSimOperator();
-            if (!TextUtils.isEmpty(simOperator)) {
-                String networkMCC = simOperator.substring(0, 3);
-                if (isSensitiveNumber(nationalNumber, networkMCC)) {
-                    return true;
-                }
+            String networkUsed = telephonyManager.getNetworkOperator(subId);
+            if (!TextUtils.isEmpty(networkUsed)) {
+                String networkMCC = networkUsed.substring(0, 3);
+                return isSensitiveNumber(nationalNumber, networkMCC);
             }
         }
 
@@ -152,10 +148,12 @@ public class SensitivePhoneNumbers {
     }
 
     private boolean isSensitiveNumber(String numberToCheck, String mcc) {
-        if (mSensitiveNumbersMap.containsKey(mcc)) {
-            for (Item item : mSensitiveNumbersMap.get(mcc)) {
-                if (PhoneNumberUtils.compare(numberToCheck, item.getNumber())) {
-                    return true;
+        if (!TextUtils.isEmpty(numberToCheck)) {
+            if (mSensitiveNumbersMap.containsKey(mcc)) {
+                for (String num : mSensitiveNumbersMap.get(mcc)) {
+                    if (PhoneNumberUtils.compare(numberToCheck, num)) {
+                        return true;
+                    }
                 }
             }
         }

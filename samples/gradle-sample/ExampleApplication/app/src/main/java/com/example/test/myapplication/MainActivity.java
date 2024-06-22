@@ -85,8 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 intent.setData(Uri.parse("tel:2813308004"));
 
-                PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent,
-                        PendingIntent.FLAG_IMMUTABLE);
+                PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
 
                 RemoteViews remoteViews = new RemoteViews(getPackageName(), R.layout.tile_remote_view);
                 remoteViews.setOnClickPendingIntent(R.id.remote_view_button, pendingIntent);

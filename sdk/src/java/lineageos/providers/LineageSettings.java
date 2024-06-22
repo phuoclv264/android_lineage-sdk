@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2015-2016 The CyanogenMod Project
- *               2017-2022 The LineageOS Project
+ *               2017-2020 The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,6 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.ArrayUtils;
 
 import java.util.ArrayList;
@@ -171,33 +170,10 @@ public final class LineageSettings {
 
     // endregion
 
-    private static final class ContentProviderHolder {
-        private final Object mLock = new Object();
-
-        private final Uri mUri;
-        @GuardedBy("mLock")
-        private IContentProvider mContentProvider;
-
-        public ContentProviderHolder(Uri uri) {
-            mUri = uri;
-        }
-
-        public IContentProvider getProvider(ContentResolver contentResolver) {
-            synchronized (mLock) {
-                if (mContentProvider == null) {
-                    mContentProvider = contentResolver
-                            .acquireProvider(mUri.getAuthority());
-                }
-                return mContentProvider;
-            }
-        }
-    }
-
     // Thread-safe.
     private static class NameValueCache {
         private final String mVersionSystemProperty;
         private final Uri mUri;
-        private final ContentProviderHolder mProviderHolder;
 
         private static final String[] SELECT_VALUE_PROJECTION =
                 new String[] { Settings.NameValueTable.VALUE };
@@ -207,18 +183,31 @@ public final class LineageSettings {
         private final HashMap<String, String> mValues = new HashMap<String, String>();
         private long mValuesVersion = 0;
 
+        // Initially null; set lazily and held forever.  Synchronized on 'this'.
+        private IContentProvider mContentProvider = null;
+
         // The method we'll call (or null, to not use) on the provider
         // for the fast path of retrieving settings.
         private final String mCallGetCommand;
         private final String mCallSetCommand;
 
         public NameValueCache(String versionSystemProperty, Uri uri,
-                String getCommand, String setCommand, ContentProviderHolder providerHolder) {
+                String getCommand, String setCommand) {
             mVersionSystemProperty = versionSystemProperty;
             mUri = uri;
             mCallGetCommand = getCommand;
             mCallSetCommand = setCommand;
-            mProviderHolder = providerHolder;
+        }
+
+        private IContentProvider lazyGetProvider(ContentResolver cr) {
+            IContentProvider cp;
+            synchronized (this) {
+                cp = mContentProvider;
+                if (cp == null) {
+                    cp = mContentProvider = cr.acquireProvider(mUri.getAuthority());
+                }
+            }
+            return cp;
         }
 
         /**
@@ -235,9 +224,8 @@ public final class LineageSettings {
                 Bundle arg = new Bundle();
                 arg.putString(Settings.NameValueTable.VALUE, value);
                 arg.putInt(CALL_METHOD_USER_KEY, userId);
-                IContentProvider cp = mProviderHolder.getProvider(cr);
-                cp.call(cr.getAttributionSource(),
-                        mProviderHolder.mUri.getAuthority(), mCallSetCommand, name, arg);
+                IContentProvider cp = lazyGetProvider(cr);
+                cp.call(cr.getPackageName(), AUTHORITY, mCallSetCommand, name, arg);
             } catch (RemoteException e) {
                 Log.w(TAG, "Can't set key " + name + " in " + mUri, e);
                 return false;
@@ -261,7 +249,7 @@ public final class LineageSettings {
                 long newValuesVersion = SystemProperties.getLong(mVersionSystemProperty, 0);
 
                 // Our own user's settings data uses a client-side cache
-                synchronized (NameValueCache.this) {
+                synchronized (this) {
                     if (mValuesVersion != newValuesVersion) {
                         if (LOCAL_LOGV || false) {
                             Log.v(TAG, "invalidate [" + mUri.getLastPathSegment() + "]: current "
@@ -270,7 +258,9 @@ public final class LineageSettings {
 
                         mValues.clear();
                         mValuesVersion = newValuesVersion;
-                    } else if (mValues.containsKey(name)) {
+                    }
+
+                    if (mValues.containsKey(name)) {
                         return mValues.get(name);  // Could be null, that's OK -- negative caching
                     }
                 }
@@ -279,7 +269,7 @@ public final class LineageSettings {
                         + " by user " + UserHandle.myUserId() + " so skipping cache");
             }
 
-            IContentProvider cp = mProviderHolder.getProvider(cr);
+            IContentProvider cp = lazyGetProvider(cr);
 
             // Try the fast path first, not using query().  If this
             // fails (alternate Settings provider that doesn't support
@@ -292,13 +282,12 @@ public final class LineageSettings {
                         args = new Bundle();
                         args.putInt(CALL_METHOD_USER_KEY, userId);
                     }
-                    Bundle b = cp.call(cr.getAttributionSource(),
-                            mProviderHolder.mUri.getAuthority(), mCallGetCommand, name, args);
+                    Bundle b = cp.call(cr.getPackageName(), AUTHORITY, mCallGetCommand, name, args);
                     if (b != null) {
                         String value = b.getPairValue();
                         // Don't update our cache for reads of other users' data
                         if (isSelf) {
-                            synchronized (NameValueCache.this) {
+                            synchronized (this) {
                                 mValues.put(name, value);
                             }
                         } else {
@@ -320,15 +309,14 @@ public final class LineageSettings {
             try {
                 Bundle queryArgs = ContentResolver.createSqlQueryBundle(
                         NAME_EQ_PLACEHOLDER, new String[]{name}, null);
-                c = cp.query(cr.getAttributionSource(), mUri,
-                        SELECT_VALUE_PROJECTION, queryArgs, null);
+                c = cp.query(cr.getPackageName(), mUri, SELECT_VALUE_PROJECTION, queryArgs, null);
                 if (c == null) {
                     Log.w(TAG, "Can't get key " + name + " from " + mUri);
                     return null;
                 }
 
                 String value = c.moveToNext() ? c.getString(0) : null;
-                synchronized (NameValueCache.this) {
+                synchronized (this) {
                     mValues.put(name, value);
                 }
                 if (LOCAL_LOGV) {
@@ -494,15 +482,12 @@ public final class LineageSettings {
         public static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY + "/system");
 
         public static final String SYS_PROP_LINEAGE_SETTING_VERSION = "sys.lineage_settings_system_version";
-        private static final ContentProviderHolder sProviderHolder =
-                new ContentProviderHolder(CONTENT_URI);
 
         private static final NameValueCache sNameValueCache = new NameValueCache(
                 SYS_PROP_LINEAGE_SETTING_VERSION,
                 CONTENT_URI,
                 CALL_METHOD_GET_SYSTEM,
-                CALL_METHOD_PUT_SYSTEM,
-                sProviderHolder);
+                CALL_METHOD_PUT_SYSTEM);
 
         /** @hide */
         protected static final ArraySet<String> MOVED_TO_SECURE;
@@ -567,7 +552,7 @@ public final class LineageSettings {
          * @return the corresponding value, or null if not present
          */
         public static String getString(ContentResolver resolver, String name) {
-            return getStringForUser(resolver, name, resolver.getUserId());
+            return getStringForUser(resolver, name, UserHandle.myUserId());
         }
 
         /**
@@ -578,7 +563,7 @@ public final class LineageSettings {
          * @return the corresponding value, or null if not present
          */
         public static String getString(ContentResolver resolver, String name, String def) {
-            String str = getStringForUser(resolver, name, resolver.getUserId());
+            String str = getStringForUser(resolver, name, UserHandle.myUserId());
             return str == null ? def : str;
         }
 
@@ -601,7 +586,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putString(ContentResolver resolver, String name, String value) {
-            return putStringForUser(resolver, name, value, resolver.getUserId());
+            return putStringForUser(resolver, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -630,7 +615,7 @@ public final class LineageSettings {
          * or not a valid integer.
          */
         public static int getInt(ContentResolver cr, String name, int def) {
-            return getIntForUser(cr, name, def, cr.getUserId());
+            return getIntForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -663,7 +648,7 @@ public final class LineageSettings {
          */
         public static int getInt(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getIntForUser(cr, name, cr.getUserId());
+            return getIntForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -691,7 +676,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putInt(ContentResolver cr, String name, int value) {
-            return putIntForUser(cr, name, value, cr.getUserId());
+            return putIntForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -715,7 +700,7 @@ public final class LineageSettings {
          * or not a valid {@code long}.
          */
         public static long getLong(ContentResolver cr, String name, long def) {
-            return getLongForUser(cr, name, def, cr.getUserId());
+            return getLongForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -750,7 +735,7 @@ public final class LineageSettings {
          */
         public static long getLong(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getLongForUser(cr, name, cr.getUserId());
+            return getLongForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -778,7 +763,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putLong(ContentResolver cr, String name, long value) {
-            return putLongForUser(cr, name, value, cr.getUserId());
+            return putLongForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -802,7 +787,7 @@ public final class LineageSettings {
          * or not a valid float.
          */
         public static float getFloat(ContentResolver cr, String name, float def) {
-            return getFloatForUser(cr, name, def, cr.getUserId());
+            return getFloatForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -836,7 +821,7 @@ public final class LineageSettings {
          */
         public static float getFloat(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getFloatForUser(cr, name, cr.getUserId());
+            return getFloatForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -867,7 +852,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putFloat(ContentResolver cr, String name, float value) {
-            return putFloatForUser(cr, name, value, cr.getUserId());
+            return putFloatForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -888,17 +873,6 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator NOTIFICATION_PLAY_QUEUE_VALIDATOR = sBooleanValidator;
-
-        /**
-         * Whether the HighTouchPollingRate is activated or not.
-         * 0 = off, 1 = on
-         */
-        public static final String HIGH_TOUCH_POLLING_RATE_ENABLE =
-                "high_touch_polling_rate_enable";
-
-        /** @hide */
-        public static final Validator HIGH_TOUCH_POLLING_RATE_ENABLE_VALIDATOR =
-                sBooleanValidator;
 
         /**
          * Whether the HighTouchSensitivity is activated or not.
@@ -933,16 +907,6 @@ public final class LineageSettings {
         /** @hide */
         public static final Validator STATUS_BAR_CLOCK_VALIDATOR =
                 new InclusiveIntegerRangeValidator(0, 2);
-
-        /**
-         * Whether to hide clock when launcher is visible
-         * default: false
-         */
-        public static final String STATUS_BAR_CLOCK_AUTO_HIDE = "status_bar_clock_auto_hide";
-
-        /** @hide */
-        public static final Validator STATUS_BAR_CLOCK_AUTO_HIDE_VALIDATOR =
-                sBooleanValidator;
 
         /**
          * Whether the notification light will be allowed when in zen mode during downtime
@@ -1091,13 +1055,14 @@ public final class LineageSettings {
          * 7 - Action Sleep
          * 8 - Last app
          * 9 - Toggle split screen
-         * 10 - Kill foreground app
+         * 10 - Single hand (left)
+         * 11 - Single hand (right)
          */
         public static final String KEY_HOME_LONG_PRESS_ACTION = "key_home_long_press_action";
 
         /** @hide */
         public static final Validator KEY_HOME_LONG_PRESS_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Action to perform when the home key is double-tapped.
@@ -1108,18 +1073,7 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator KEY_HOME_DOUBLE_TAP_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
-
-        /**
-         * Action to perform when the back key is long-pressed.
-         * (Default can be configured via config_longPressOnBackBehavior)
-         * (See KEY_HOME_LONG_PRESS_ACTION for valid values)
-         */
-        public static final String KEY_BACK_LONG_PRESS_ACTION = "key_back_long_press_action";
-
-        /** @hide */
-        public static final Validator KEY_BACK_LONG_PRESS_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Whether to wake the screen with the back key, the value is boolean.
@@ -1168,7 +1122,7 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator KEY_MENU_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Action to perform when the menu key is long-pressed.
@@ -1179,7 +1133,7 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator KEY_MENU_LONG_PRESS_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Action to perform when the assistant (search) key is pressed. (Default is 3)
@@ -1189,7 +1143,7 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator KEY_ASSIST_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Action to perform when the assistant (search) key is long-pressed. (Default is 4)
@@ -1199,7 +1153,7 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator KEY_ASSIST_LONG_PRESS_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Action to perform when the app switch key is pressed. (Default is 2)
@@ -1209,7 +1163,7 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator KEY_APP_SWITCH_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Action to perform when the app switch key is long-pressed. (Default is 0)
@@ -1219,7 +1173,7 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator KEY_APP_SWITCH_LONG_PRESS_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Action to perform when the screen edge is long-swiped. (Default is 0)
@@ -1229,7 +1183,7 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator KEY_EDGE_LONG_SWIPE_ACTION_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 10);
+                new InclusiveIntegerRangeValidator(0, 9);
 
         /**
          * Whether to wake the screen with the home key, the value is boolean.
@@ -1359,17 +1313,6 @@ public final class LineageSettings {
                 sBooleanValidator;
 
         /**
-         * Whether the battery LED should be disabled when the battery is fully charged.
-         * The value is boolean (1 or 0).
-         */
-        public static final String BATTERY_LIGHT_FULL_CHARGE_DISABLED =
-                "battery_light_full_charge_disabled";
-
-        /** @hide */
-        public static final Validator BATTERY_LIGHT_FULL_CHARGE_DISABLED_VALIDATOR =
-                sBooleanValidator;
-
-        /**
          * Whether the battery LED should repeatedly flash when the battery is low
          * on charge. The value is boolean (1 or 0).
          */
@@ -1427,6 +1370,56 @@ public final class LineageSettings {
                 sBooleanValidator;
 
         /**
+         * Whether to use dark theme
+         * 0: automatic - based on wallpaper
+         * 1: time - based on LiveDisplay status
+         * 2: force light
+         * 3: force dark
+         *
+         * @deprecated
+         */
+        @Deprecated
+        public static final String BERRY_GLOBAL_STYLE = "berry_global_style";
+
+        /** @hide */
+        @Deprecated
+        public static final Validator BERRY_GLOBAL_STYLE_VALIDATOR =
+                new InclusiveIntegerRangeValidator(0, 3);
+
+        /**
+         * Current accent package name
+         */
+        @Deprecated
+        public static final String BERRY_CURRENT_ACCENT = "berry_current_accent";
+
+        /** @hide */
+        @Deprecated
+        public static final Validator BERRY_CURRENT_ACCENT_VALIDATOR =
+                sNonNullStringValidator;
+
+        /**
+         * Current dark overlay package name
+         */
+        @Deprecated
+        public static final String BERRY_DARK_OVERLAY = "berry_dark_overlay";
+
+        /** @hide */
+        @Deprecated
+        public static final Validator BERRY_DARK_OVERLAY_VALIDATOR =
+                sNonNullStringValidator;
+
+        /**
+         * Current application managing the style
+         */
+        @Deprecated
+        public static final String BERRY_MANAGED_BY_APP = "berry_managed_by_app";
+
+        /** @hide */
+        @Deprecated
+        public static final Validator BERRY_MANAGED_BY_APP_VALIDATOR =
+                sNonNullStringValidator;
+
+        /**
          * Whether to use black theme for dark mode
          */
         public static final String BERRY_BLACK_THEME = "berry_black_theme";
@@ -1434,6 +1427,78 @@ public final class LineageSettings {
         /** @hide */
         public static final Validator BERRY_BLACK_THEME_VALIDATOR =
                 sBooleanValidator;
+
+        /**
+         * Enable looking up of phone numbers of nearby places
+         * 0 = 0ff, 1 = on
+         */
+        public static final String ENABLE_FORWARD_LOOKUP = "enable_forward_lookup";
+
+        /** @hide */
+        public static final Validator ENABLE_FORWARD_LOOKUP_VALIDATOR =
+                sBooleanValidator;
+
+        /**
+         * Enable looking up of phone numbers of people
+         * 0 = 0ff, 1 = on
+         */
+        public static final String ENABLE_PEOPLE_LOOKUP = "enable_people_lookup";
+
+        /** @hide */
+        public static final Validator ENABLE_PEOPLE_LOOKUP_VALIDATOR =
+                sBooleanValidator;
+
+        /**
+         * Enable looking up of information of phone numbers not in the contacts
+         * 0 = 0ff, 1 = on
+         */
+        public static final String ENABLE_REVERSE_LOOKUP = "enable_reverse_lookup";
+
+        /** @hide */
+        public static final Validator ENABLE_REVERSE_LOOKUP_VALIDATOR =
+                sBooleanValidator;
+
+        /**
+         * The forward lookup provider to be utilized by the Dialer
+         */
+        public static final String FORWARD_LOOKUP_PROVIDER = "forward_lookup_provider";
+
+        /** @hide */
+        public static final Validator FORWARD_LOOKUP_PROVIDER_VALIDATOR = sAlwaysTrueValidator;
+
+        /**
+         * The people lookup provider to be utilized by the Dialer
+         */
+        public static final String PEOPLE_LOOKUP_PROVIDER = "people_lookup_provider";
+
+        /** @hide */
+        public static final Validator PEOPLE_LOOKUP_PROVIDER_VALIDATOR = sAlwaysTrueValidator;
+
+        /**
+         * The reverse lookup provider to be utilized by the Dialer
+         */
+        public static final String REVERSE_LOOKUP_PROVIDER = "reverse_lookup_provider";
+
+        /** @hide */
+        public static final Validator REVERSE_LOOKUP_PROVIDER_VALIDATOR = sAlwaysTrueValidator;
+
+        /**
+         * The OpenCNAM paid account ID to be utilized by the Dialer
+         */
+        public static final String DIALER_OPENCNAM_ACCOUNT_SID = "dialer_opencnam_account_sid";
+
+        /** @hide */
+        public static final Validator DIALER_OPENCNAM_ACCOUNT_SID_VALIDATOR =
+                sAlwaysTrueValidator;
+
+        /**
+         * The OpenCNAM authentication token to be utilized by the Dialer
+         */
+        public static final String DIALER_OPENCNAM_AUTH_TOKEN = "dialer_opencnam_auth_token";
+
+        /** @hide */
+        public static final Validator DIALER_OPENCNAM_AUTH_TOKEN_VALIDATOR =
+                sAlwaysTrueValidator;
 
         /**
          * Color temperature of the display during the day
@@ -1473,16 +1538,6 @@ public final class LineageSettings {
                 sBooleanValidator;
 
         /**
-         * Anti flicker
-         * 0 = 0ff, 1 = on
-         */
-        public static final String DISPLAY_ANTI_FLICKER = "display_anti_flicker";
-
-        /** @hide */
-        public static final Validator DISPLAY_ANTI_FLICKER_VALIDATOR =
-                sBooleanValidator;
-
-        /**
          * Reader mode
          * 0 = 0ff, 1 = on
          */
@@ -1497,6 +1552,12 @@ public final class LineageSettings {
          * 0 = 0ff, 1 = on
          */
         public static final String DISPLAY_CABC = "display_low_power";
+
+        /**
+         * @deprecated Use {@link lineageos.providers.LineageSettings.System#DISPLAY_CABC} instead
+         */
+        @Deprecated
+        public static final String DISPLAY_LOW_POWER = DISPLAY_CABC;
 
         /** @hide */
         public static final Validator DISPLAY_CABC_VALIDATOR =
@@ -1572,6 +1633,16 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator DOUBLE_TAP_SLEEP_GESTURE_VALIDATOR =
+                sBooleanValidator;
+
+        /**
+         * Boolean value on whether to show weather in the statusbar
+         * 0 = 0ff, 1 = on
+         */
+        public static final String STATUS_BAR_SHOW_WEATHER = "status_bar_show_weather";
+
+        /** @hide */
+        public static final Validator STATUS_BAR_SHOW_WEATHER_VALIDATOR =
                 sBooleanValidator;
 
         /**
@@ -1709,6 +1780,15 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator USE_EDGE_SERVICE_FOR_GESTURES_VALIDATOR =
+                sBooleanValidator;
+
+        /**
+         * Show the pending notification counts as overlays on the status bar
+         */
+        public static final String STATUS_BAR_NOTIF_COUNT = "status_bar_notif_count";
+
+        /** @hide */
+        public static final Validator STATUS_BAR_NOTIF_COUNT_VALIDATOR =
                 sBooleanValidator;
 
         /**
@@ -1957,15 +2037,6 @@ public final class LineageSettings {
                 sBooleanValidator;
 
         /**
-         * Whether auto brightness is applied one shot when screen is turned on
-         */
-        public static final String AUTO_BRIGHTNESS_ONE_SHOT = "auto_brightness_one_shot";
-
-        /** @hide */
-        public static final Validator AUTO_BRIGHTNESS_ONE_SHOT_VALIDATOR =
-                sBooleanValidator;
-
-        /**
          * Whether or not to launch default music player when headset is connected
          */
         public static final String HEADSET_CONNECT_PLAYER = "headset_connect_player";
@@ -2029,30 +2100,13 @@ public final class LineageSettings {
 
         /**
          * Whether to take partial screenshot with volume down + power click.
+         * 0 = 0ff, 1 = on
          */
         public static final String CLICK_PARTIAL_SCREENSHOT = "click_partial_screenshot";
 
         /** @hide */
         public static final Validator CLICK_PARTIAL_SCREENSHOT_VALIDATOR =
                 sBooleanValidator;
-
-        /**
-         * Whether to enable taskbar.
-         */
-        public static final String ENABLE_TASKBAR = "enable_taskbar";
-
-        /** @hide */
-        public static final Validator ENABLE_TASKBAR_VALIDATOR =
-                sBooleanValidator;
-
-        /**
-         * Whether to enable fingerprint wake-and-unlock.
-         */
-        public static final String FINGERPRINT_WAKE_UNLOCK = "fingerprint_wake_unlock";
-
-        /** @hide */
-        public static final Validator FINGERPRINT_WAKE_UNLOCK_VALIDATOR =
-                sNonNegativeIntegerValidator;
 
         /**
          * I can haz more bukkits
@@ -2074,7 +2128,6 @@ public final class LineageSettings {
          */
         public static final String[] LEGACY_SYSTEM_SETTINGS = new String[]{
                 LineageSettings.System.NAV_BUTTONS,
-                LineageSettings.System.KEY_BACK_LONG_PRESS_ACTION,
                 LineageSettings.System.KEY_HOME_LONG_PRESS_ACTION,
                 LineageSettings.System.KEY_HOME_DOUBLE_TAP_ACTION,
                 LineageSettings.System.BACK_WAKE_SCREEN,
@@ -2095,24 +2148,31 @@ public final class LineageSettings {
                 LineageSettings.System.STYLUS_ICON_ENABLED,
                 LineageSettings.System.SWAP_VOLUME_KEYS_ON_ROTATION,
                 LineageSettings.System.BATTERY_LIGHT_ENABLED,
-                LineageSettings.System.BATTERY_LIGHT_FULL_CHARGE_DISABLED,
                 LineageSettings.System.BATTERY_LIGHT_PULSE,
                 LineageSettings.System.BATTERY_LIGHT_LOW_COLOR,
                 LineageSettings.System.BATTERY_LIGHT_MEDIUM_COLOR,
                 LineageSettings.System.BATTERY_LIGHT_FULL_COLOR,
                 LineageSettings.System.ENABLE_MWI_NOTIFICATION,
                 LineageSettings.System.PROXIMITY_ON_WAKE,
+                LineageSettings.System.ENABLE_FORWARD_LOOKUP,
+                LineageSettings.System.ENABLE_PEOPLE_LOOKUP,
+                LineageSettings.System.ENABLE_REVERSE_LOOKUP,
+                LineageSettings.System.FORWARD_LOOKUP_PROVIDER,
+                LineageSettings.System.PEOPLE_LOOKUP_PROVIDER,
+                LineageSettings.System.REVERSE_LOOKUP_PROVIDER,
+                LineageSettings.System.DIALER_OPENCNAM_ACCOUNT_SID,
+                LineageSettings.System.DIALER_OPENCNAM_AUTH_TOKEN,
                 LineageSettings.System.DISPLAY_TEMPERATURE_DAY,
                 LineageSettings.System.DISPLAY_TEMPERATURE_NIGHT,
                 LineageSettings.System.DISPLAY_TEMPERATURE_MODE,
                 LineageSettings.System.DISPLAY_AUTO_OUTDOOR_MODE,
-                LineageSettings.System.DISPLAY_ANTI_FLICKER,
                 LineageSettings.System.DISPLAY_READING_MODE,
                 LineageSettings.System.DISPLAY_CABC,
                 LineageSettings.System.DISPLAY_COLOR_ENHANCE,
                 LineageSettings.System.DISPLAY_COLOR_ADJUSTMENT,
                 LineageSettings.System.LIVE_DISPLAY_HINTED,
                 LineageSettings.System.DOUBLE_TAP_SLEEP_GESTURE,
+                LineageSettings.System.STATUS_BAR_SHOW_WEATHER,
                 LineageSettings.System.RECENTS_SHOW_SEARCH_BAR,
                 LineageSettings.System.NAVBAR_LEFT_IN_LANDSCAPE,
                 LineageSettings.System.T9_SEARCH_INPUT_LOCALE,
@@ -2124,6 +2184,7 @@ public final class LineageSettings {
                 LineageSettings.System.STATUS_BAR_BRIGHTNESS_CONTROL,
                 LineageSettings.System.VOLBTN_MUSIC_CONTROLS,
                 LineageSettings.System.USE_EDGE_SERVICE_FOR_GESTURES,
+                LineageSettings.System.STATUS_BAR_NOTIF_COUNT,
                 LineageSettings.System.CALL_RECORDING_FORMAT,
                 LineageSettings.System.NOTIFICATION_LIGHT_BRIGHTNESS_LEVEL,
                 LineageSettings.System.NOTIFICATION_LIGHT_SCREEN_ON,
@@ -2174,13 +2235,10 @@ public final class LineageSettings {
                 new ArrayMap<String, Validator>();
         static {
             VALIDATORS.put(NOTIFICATION_PLAY_QUEUE, NOTIFICATION_PLAY_QUEUE_VALIDATOR);
-            VALIDATORS.put(HIGH_TOUCH_POLLING_RATE_ENABLE,
-                    HIGH_TOUCH_POLLING_RATE_ENABLE_VALIDATOR);
             VALIDATORS.put(HIGH_TOUCH_SENSITIVITY_ENABLE,
                     HIGH_TOUCH_SENSITIVITY_ENABLE_VALIDATOR);
             VALIDATORS.put(SYSTEM_PROFILES_ENABLED, SYSTEM_PROFILES_ENABLED_VALIDATOR);
             VALIDATORS.put(STATUS_BAR_CLOCK, STATUS_BAR_CLOCK_VALIDATOR);
-            VALIDATORS.put(STATUS_BAR_CLOCK_AUTO_HIDE, STATUS_BAR_CLOCK_AUTO_HIDE_VALIDATOR);
             VALIDATORS.put(STATUS_BAR_AM_PM, STATUS_BAR_AM_PM_VALIDATOR);
             VALIDATORS.put(STATUS_BAR_BATTERY_STYLE, STATUS_BAR_BATTERY_STYLE_VALIDATOR);
             VALIDATORS.put(STATUS_BAR_SHOW_BATTERY_PERCENT,
@@ -2196,7 +2254,6 @@ public final class LineageSettings {
             VALIDATORS.put(NAVIGATION_BAR_MENU_ARROW_KEYS,
                     NAVIGATION_BAR_MENU_ARROW_KEYS_VALIDATOR);
             VALIDATORS.put(NAVIGATION_BAR_HINT, NAVIGATION_BAR_HINT_VALIDATOR);
-            VALIDATORS.put(KEY_BACK_LONG_PRESS_ACTION, KEY_BACK_LONG_PRESS_ACTION_VALIDATOR);
             VALIDATORS.put(KEY_HOME_LONG_PRESS_ACTION, KEY_HOME_LONG_PRESS_ACTION_VALIDATOR);
             VALIDATORS.put(KEY_HOME_DOUBLE_TAP_ACTION, KEY_HOME_DOUBLE_TAP_ACTION_VALIDATOR);
             VALIDATORS.put(BACK_WAKE_SCREEN, BACK_WAKE_SCREEN_VALIDATOR);
@@ -2228,21 +2285,31 @@ public final class LineageSettings {
             VALIDATORS.put(BUTTON_BACKLIGHT_ONLY_WHEN_PRESSED,
                     BUTTON_BACKLIGHT_ONLY_WHEN_PRESSED_VALIDATOR);
             VALIDATORS.put(BATTERY_LIGHT_ENABLED, BATTERY_LIGHT_ENABLED_VALIDATOR);
-            VALIDATORS.put(BATTERY_LIGHT_FULL_CHARGE_DISABLED,
-                    BATTERY_LIGHT_FULL_CHARGE_DISABLED_VALIDATOR);
             VALIDATORS.put(BATTERY_LIGHT_PULSE, BATTERY_LIGHT_PULSE_VALIDATOR);
             VALIDATORS.put(BATTERY_LIGHT_LOW_COLOR, BATTERY_LIGHT_LOW_COLOR_VALIDATOR);
             VALIDATORS.put(BATTERY_LIGHT_MEDIUM_COLOR, BATTERY_LIGHT_MEDIUM_COLOR_VALIDATOR);
             VALIDATORS.put(BATTERY_LIGHT_FULL_COLOR, BATTERY_LIGHT_FULL_COLOR_VALIDATOR);
             VALIDATORS.put(ENABLE_MWI_NOTIFICATION, ENABLE_MWI_NOTIFICATION_VALIDATOR);
             VALIDATORS.put(PROXIMITY_ON_WAKE, PROXIMITY_ON_WAKE_VALIDATOR);
+            VALIDATORS.put(BERRY_GLOBAL_STYLE, BERRY_GLOBAL_STYLE_VALIDATOR);
+            VALIDATORS.put(BERRY_CURRENT_ACCENT, BERRY_CURRENT_ACCENT_VALIDATOR);
+            VALIDATORS.put(BERRY_DARK_OVERLAY, BERRY_DARK_OVERLAY_VALIDATOR);
+            VALIDATORS.put(BERRY_MANAGED_BY_APP, BERRY_MANAGED_BY_APP_VALIDATOR);
             VALIDATORS.put(BERRY_BLACK_THEME, BERRY_BLACK_THEME_VALIDATOR);
+            VALIDATORS.put(ENABLE_FORWARD_LOOKUP, ENABLE_FORWARD_LOOKUP_VALIDATOR);
+            VALIDATORS.put(ENABLE_PEOPLE_LOOKUP, ENABLE_PEOPLE_LOOKUP_VALIDATOR);
+            VALIDATORS.put(ENABLE_REVERSE_LOOKUP, ENABLE_REVERSE_LOOKUP_VALIDATOR);
+            VALIDATORS.put(FORWARD_LOOKUP_PROVIDER, FORWARD_LOOKUP_PROVIDER_VALIDATOR);
+            VALIDATORS.put(PEOPLE_LOOKUP_PROVIDER, PEOPLE_LOOKUP_PROVIDER_VALIDATOR);
+            VALIDATORS.put(REVERSE_LOOKUP_PROVIDER, REVERSE_LOOKUP_PROVIDER_VALIDATOR);
+            VALIDATORS.put(DIALER_OPENCNAM_ACCOUNT_SID,
+                    DIALER_OPENCNAM_ACCOUNT_SID_VALIDATOR);
+            VALIDATORS.put(DIALER_OPENCNAM_AUTH_TOKEN, DIALER_OPENCNAM_AUTH_TOKEN_VALIDATOR);
             VALIDATORS.put(DISPLAY_TEMPERATURE_DAY, DISPLAY_TEMPERATURE_DAY_VALIDATOR);
             VALIDATORS.put(DISPLAY_TEMPERATURE_NIGHT, DISPLAY_TEMPERATURE_NIGHT_VALIDATOR);
             VALIDATORS.put(DISPLAY_TEMPERATURE_MODE, DISPLAY_TEMPERATURE_MODE_VALIDATOR);
             VALIDATORS.put(DISPLAY_AUTO_CONTRAST, DISPLAY_AUTO_CONTRAST_VALIDATOR);
             VALIDATORS.put(DISPLAY_AUTO_OUTDOOR_MODE, DISPLAY_AUTO_OUTDOOR_MODE_VALIDATOR);
-            VALIDATORS.put(DISPLAY_ANTI_FLICKER, DISPLAY_ANTI_FLICKER_VALIDATOR);
             VALIDATORS.put(DISPLAY_READING_MODE, DISPLAY_READING_MODE_VALIDATOR);
             VALIDATORS.put(DISPLAY_CABC, DISPLAY_CABC_VALIDATOR);
             VALIDATORS.put(DISPLAY_COLOR_ENHANCE, DISPLAY_COLOR_ENHANCE_VALIDATOR);
@@ -2250,6 +2317,7 @@ public final class LineageSettings {
             VALIDATORS.put(LIVE_DISPLAY_HINTED, LIVE_DISPLAY_HINTED_VALIDATOR);
             VALIDATORS.put(TRUST_INTERFACE_HINTED, TRUST_INTERFACE_HINTED_VALIDATOR);
             VALIDATORS.put(DOUBLE_TAP_SLEEP_GESTURE, DOUBLE_TAP_SLEEP_GESTURE_VALIDATOR);
+            VALIDATORS.put(STATUS_BAR_SHOW_WEATHER, STATUS_BAR_SHOW_WEATHER_VALIDATOR);
             VALIDATORS.put(RECENTS_SHOW_SEARCH_BAR, RECENTS_SHOW_SEARCH_BAR_VALIDATOR);
             VALIDATORS.put(NAVBAR_LEFT_IN_LANDSCAPE, NAVBAR_LEFT_IN_LANDSCAPE_VALIDATOR);
             VALIDATORS.put(T9_SEARCH_INPUT_LOCALE, T9_SEARCH_INPUT_LOCALE_VALIDATOR);
@@ -2267,6 +2335,7 @@ public final class LineageSettings {
             VALIDATORS.put(VOLBTN_MUSIC_CONTROLS, VOLBTN_MUSIC_CONTROLS_VALIDATOR);
             VALIDATORS.put(USE_EDGE_SERVICE_FOR_GESTURES,
                     USE_EDGE_SERVICE_FOR_GESTURES_VALIDATOR);
+            VALIDATORS.put(STATUS_BAR_NOTIF_COUNT, STATUS_BAR_NOTIF_COUNT_VALIDATOR);
             VALIDATORS.put(CALL_RECORDING_FORMAT, CALL_RECORDING_FORMAT_VALIDATOR);
             VALIDATORS.put(BATTERY_LIGHT_BRIGHTNESS_LEVEL,
                     BATTERY_LIGHT_BRIGHTNESS_LEVEL_VALIDATOR);
@@ -2302,7 +2371,6 @@ public final class LineageSettings {
                     NOTIFICATION_LIGHT_PULSE_CUSTOM_VALUES_VALIDATOR);
             VALIDATORS.put(NOTIFICATION_LIGHT_COLOR_AUTO,
                     NOTIFICATION_LIGHT_COLOR_AUTO_VALIDATOR);
-            VALIDATORS.put(AUTO_BRIGHTNESS_ONE_SHOT, AUTO_BRIGHTNESS_ONE_SHOT_VALIDATOR);
             VALIDATORS.put(HEADSET_CONNECT_PLAYER, HEADSET_CONNECT_PLAYER_VALIDATOR);
             VALIDATORS.put(ZEN_ALLOW_LIGHTS, ZEN_ALLOW_LIGHTS_VALIDATOR);
             VALIDATORS.put(ZEN_PRIORITY_ALLOW_LIGHTS, ZEN_PRIORITY_ALLOW_LIGHTS_VALIDATOR);
@@ -2317,10 +2385,6 @@ public final class LineageSettings {
                     FORCE_SHOW_NAVBAR_VALIDATOR);
             VALIDATORS.put(CLICK_PARTIAL_SCREENSHOT,
                     CLICK_PARTIAL_SCREENSHOT_VALIDATOR);
-            VALIDATORS.put(ENABLE_TASKBAR,
-                    ENABLE_TASKBAR_VALIDATOR);
-            VALIDATORS.put(FINGERPRINT_WAKE_UNLOCK,
-                    FINGERPRINT_WAKE_UNLOCK_VALIDATOR);
             VALIDATORS.put(__MAGICAL_TEST_PASSING_ENABLER,
                     __MAGICAL_TEST_PASSING_ENABLER_VALIDATOR);
         };
@@ -2337,15 +2401,11 @@ public final class LineageSettings {
 
         public static final String SYS_PROP_LINEAGE_SETTING_VERSION = "sys.lineage_settings_secure_version";
 
-        private static final ContentProviderHolder sProviderHolder =
-                new ContentProviderHolder(CONTENT_URI);
-
         private static final NameValueCache sNameValueCache = new NameValueCache(
                 SYS_PROP_LINEAGE_SETTING_VERSION,
                 CONTENT_URI,
                 CALL_METHOD_GET_SECURE,
-                CALL_METHOD_PUT_SECURE,
-                sProviderHolder);
+                CALL_METHOD_PUT_SECURE);
 
         /** @hide */
         protected static final ArraySet<String> MOVED_TO_GLOBAL;
@@ -2410,7 +2470,7 @@ public final class LineageSettings {
          * @return the corresponding value, or null if not present
          */
         public static String getString(ContentResolver resolver, String name) {
-            return getStringForUser(resolver, name, resolver.getUserId());
+            return getStringForUser(resolver, name, UserHandle.myUserId());
         }
 
         /**
@@ -2421,7 +2481,7 @@ public final class LineageSettings {
          * @return the corresponding value, or null if not present
          */
         public static String getString(ContentResolver resolver, String name, String def) {
-            String str = getStringForUser(resolver, name, resolver.getUserId());
+            String str = getStringForUser(resolver, name, UserHandle.myUserId());
             return str == null ? def : str;
         }
 
@@ -2444,7 +2504,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putString(ContentResolver resolver, String name, String value) {
-            return putStringForUser(resolver, name, value, resolver.getUserId());
+            return putStringForUser(resolver, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2473,7 +2533,7 @@ public final class LineageSettings {
          * or not a valid integer.
          */
         public static int getInt(ContentResolver cr, String name, int def) {
-            return getIntForUser(cr, name, def, cr.getUserId());
+            return getIntForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2506,7 +2566,7 @@ public final class LineageSettings {
          */
         public static int getInt(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getIntForUser(cr, name, cr.getUserId());
+            return getIntForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2534,7 +2594,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putInt(ContentResolver cr, String name, int value) {
-            return putIntForUser(cr, name, value, cr.getUserId());
+            return putIntForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2558,7 +2618,7 @@ public final class LineageSettings {
          * or not a valid {@code long}.
          */
         public static long getLong(ContentResolver cr, String name, long def) {
-            return getLongForUser(cr, name, def, cr.getUserId());
+            return getLongForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2593,7 +2653,7 @@ public final class LineageSettings {
          */
         public static long getLong(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getLongForUser(cr, name, cr.getUserId());
+            return getLongForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2621,7 +2681,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putLong(ContentResolver cr, String name, long value) {
-            return putLongForUser(cr, name, value, cr.getUserId());
+            return putLongForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2645,7 +2705,7 @@ public final class LineageSettings {
          * or not a valid float.
          */
         public static float getFloat(ContentResolver cr, String name, float def) {
-            return getFloatForUser(cr, name, def, cr.getUserId());
+            return getFloatForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2679,7 +2739,7 @@ public final class LineageSettings {
          */
         public static float getFloat(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getFloatForUser(cr, name, cr.getUserId());
+            return getFloatForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2710,7 +2770,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putFloat(ContentResolver cr, String name, float value) {
-            return putFloatForUser(cr, name, value, cr.getUserId());
+            return putFloatForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -2722,6 +2782,13 @@ public final class LineageSettings {
         // endregion
 
         // region Secure Settings
+
+        /**
+         * Whether to enable "advanced mode" for the current user.
+         * Boolean setting. 0 = no, 1 = yes.
+         * @hide
+         */
+        public static final String ADVANCED_MODE = "advanced_mode";
 
         /**
          * The time in ms to keep the button backlight on after pressing a button.
@@ -2737,6 +2804,13 @@ public final class LineageSettings {
          * @hide
          */
         public static final String BUTTON_BRIGHTNESS = "button_brightness";
+
+        /**
+         * Developer options - Navigation Bar show switch
+         * @deprecated
+         * @hide
+         */
+        public static final String DEV_FORCE_SHOW_NAVBAR = "dev_force_show_navbar";
 
         /**
          * The keyboard brightness to be used while the screen is on.
@@ -2780,6 +2854,30 @@ public final class LineageSettings {
         public static final String STATS_COLLECTION = "stats_collection";
 
         /**
+         * Whether the global stats collection setting has been successfully reported to server
+         * @hide
+         * @deprecated {@link org.lineageos.lineageparts.lineagestats.AnonymousStats} no longer uses this
+         */
+        @Deprecated
+        public static final String STATS_COLLECTION_REPORTED = "stats_collection_reported";
+
+        /**
+         * Whether newly installed apps should run with privacy guard by default
+         * @deprecated
+         * @hide
+         */
+        @Deprecated
+        public static final String PRIVACY_GUARD_DEFAULT = "privacy_guard_default";
+
+        /**
+         * Whether a notification should be shown if privacy guard is enabled
+         * @deprecated
+         * @hide
+         */
+        @Deprecated
+        public static final String PRIVACY_GUARD_NOTIFICATION = "privacy_guard_notification";
+
+        /**
          * The global recents long press activity chosen by the user.
          * This setting is stored as a flattened component name as
          * per {@link ComponentName#flattenToString()}.
@@ -2819,6 +2917,18 @@ public final class LineageSettings {
                 RING_HOME_BUTTON_BEHAVIOR_DO_NOTHING;
 
         /**
+         * Performance profile
+         * @hide
+         */
+        public static final String PERFORMANCE_PROFILE = "performance_profile";
+
+        /**
+         * App-based performance profile selection
+         * @hide
+         */
+        public static final String APP_PERFORMANCE_PROFILES_ENABLED = "app_perf_profiles_enabled";
+
+        /**
          * Launch actions for left/right lockscreen targets
          * @hide
          */
@@ -2832,6 +2942,30 @@ public final class LineageSettings {
         public static final String DEVELOPMENT_SHORTCUT = "development_shortcut";
 
         /**
+         * Whether to display the ADB notification.
+         * @hide
+         */
+        public static final String ADB_NOTIFY = "adb_notify";
+
+        /**
+         * The TCP/IP port to run ADB on, or -1 for USB
+         * @hide
+         */
+        public static final String ADB_PORT = "adb_port";
+
+        /**
+         * The hostname for this device
+         * @hide
+         */
+        public static final String DEVICE_HOSTNAME = "device_hostname";
+
+        /**
+         * Whether to allow killing of the foreground app by long-pressing the Back button
+         * @hide
+         */
+        public static final String KILL_APP_LONGPRESS_BACK = "kill_app_longpress_back";
+
+        /**
          * Whether to exclude the top area of the screen from back gesture
          * @hide
          */
@@ -2843,6 +2977,11 @@ public final class LineageSettings {
          */
         public static final Validator GESTURE_BACK_EXCLUDE_TOP_VALIDATOR =
                 new InclusiveIntegerRangeValidator(0, 50);
+
+        /** Protected Components
+         * @hide
+         */
+        public static final String PROTECTED_COMPONENTS = "protected_components";
 
         /**
          * Stored color matrix for LiveDisplay. This is used to allow co-existence with
@@ -2900,6 +3039,12 @@ public final class LineageSettings {
         public static final String LOCKSCREEN_INTERNALLY_ENABLED = "lockscreen_internally_enabled";
 
         /**
+         * Delimited list of packages allowed to manage/launch protected apps (used for filtering)
+         * @hide
+         */
+        public static final String PROTECTED_COMPONENT_MANAGERS = "protected_component_managers";
+
+        /**
          * Whether keyguard will direct show security view (0 = false, 1 = true)
          * @hide
          */
@@ -2918,10 +3063,34 @@ public final class LineageSettings {
         public static final String VIBRATOR_INTENSITY = "vibrator_intensity";
 
         /**
+         * Current active & enabled Weather Provider Service
+         *
+         * @hide
+         */
+        public static final String WEATHER_PROVIDER_SERVICE = "weather_provider_service";
+
+        /**
+         * Set to 0 when we enter the Lineage Setup Wizard.
+         * Set to 1 when we exit the Lineage Setup Wizard.
+         *
+         * @deprecated Use {@link Secure#USER_SETUP_COMPLETE} or
+         *             {@link Settings.Global#DEVICE_PROVISIONED} instead
+         * @hide
+         */
+        @Deprecated
+        public static final String LINEAGE_SETUP_WIZARD_COMPLETED = "lineage_setup_wizard_completed";
+
+        /**
          * Whether lock screen bluring is enabled on devices that support this feature
          * @hide
          */
         public static final String LOCK_SCREEN_BLUR_ENABLED = "lock_screen_blur_enabled";
+
+        /**
+         * Whether to display weather information on the lock screen
+         * @hide
+         */
+        public static final String LOCK_SCREEN_WEATHER_ENABLED = "lock_screen_weather_enabled";
 
         /**
          * Network traffic indicator mode
@@ -2964,6 +3133,31 @@ public final class LineageSettings {
 
         /** @hide */
         public static final Validator NETWORK_TRAFFIC_SHOW_UNITS_VALIDATOR = sBooleanValidator;
+
+        /**
+         * Enable displaying the Trust service's notifications
+         * 0 = 0ff, 1 = on
+         * @deprecated Rely on {@link lineageos.providers.TRUST_WARNINGS} instead
+         */
+         @Deprecated
+        public static final String TRUST_NOTIFICATIONS = "trust_notifications";
+
+        /** @hide */
+        @Deprecated
+        public static final Validator TRUST_NOTIFICATIONS_VALIDATOR =
+                sBooleanValidator;
+
+        /**
+         * Restrict USB when the screen is locked
+         * 0 = Off, 1 = On
+         *
+         * @hide
+         */
+        public static final String TRUST_RESTRICT_USB_KEYGUARD = "trust_restrict_usb";
+
+        /** @hide */
+        public static final Validator TRUST_RESTRICT_USB_KEYGUARD_VALIDATOR =
+                sBooleanValidator;
 
         /**
          * Trust warnings status
@@ -3009,8 +3203,10 @@ public final class LineageSettings {
          * @hide
          */
         public static final String[] LEGACY_SECURE_SETTINGS = new String[]{
+                LineageSettings.Secure.ADVANCED_MODE,
                 LineageSettings.Secure.BUTTON_BACKLIGHT_TIMEOUT,
                 LineageSettings.Secure.BUTTON_BRIGHTNESS,
+                LineageSettings.Secure.DEV_FORCE_SHOW_NAVBAR,
                 LineageSettings.Secure.KEYBOARD_BRIGHTNESS,
                 LineageSettings.Secure.POWER_MENU_ACTIONS,
                 LineageSettings.Secure.STATS_COLLECTION,
@@ -3019,11 +3215,20 @@ public final class LineageSettings {
                 LineageSettings.Secure.NAVIGATION_RING_TARGETS[1],
                 LineageSettings.Secure.NAVIGATION_RING_TARGETS[2],
                 LineageSettings.Secure.RECENTS_LONG_PRESS_ACTIVITY,
+                LineageSettings.Secure.ADB_NOTIFY,
+                LineageSettings.Secure.ADB_PORT,
+                LineageSettings.Secure.DEVICE_HOSTNAME,
+                LineageSettings.Secure.KILL_APP_LONGPRESS_BACK,
+                LineageSettings.Secure.PROTECTED_COMPONENTS,
                 LineageSettings.Secure.LIVE_DISPLAY_COLOR_MATRIX,
                 LineageSettings.Secure.ADVANCED_REBOOT,
                 LineageSettings.Secure.LOCKSCREEN_TARGETS,
                 LineageSettings.Secure.RING_HOME_BUTTON_BEHAVIOR,
+                LineageSettings.Secure.PRIVACY_GUARD_DEFAULT,
+                LineageSettings.Secure.PRIVACY_GUARD_NOTIFICATION,
                 LineageSettings.Secure.DEVELOPMENT_SHORTCUT,
+                LineageSettings.Secure.PERFORMANCE_PROFILE,
+                LineageSettings.Secure.APP_PERFORMANCE_PROFILES_ENABLED,
                 LineageSettings.Secure.QS_LOCATION_ADVANCED,
                 LineageSettings.Secure.LOCKSCREEN_VISUALIZER_ENABLED,
                 LineageSettings.Secure.LOCK_PASS_TO_SECURITY_VIEW
@@ -3035,6 +3240,46 @@ public final class LineageSettings {
         public static boolean isLegacySetting(String key) {
             return ArrayUtils.contains(LEGACY_SECURE_SETTINGS, key);
         }
+
+        /**
+         * @hide
+         */
+        public static final Validator PROTECTED_COMPONENTS_VALIDATOR = new Validator() {
+            private final String mDelimiter = "|";
+
+            @Override
+            public boolean validate(String value) {
+                if (!TextUtils.isEmpty(value)) {
+                    final String[] array = TextUtils.split(value, Pattern.quote(mDelimiter));
+                    for (String item : array) {
+                        if (TextUtils.isEmpty(item)) {
+                            return false; // Empty components not allowed
+                        }
+                    }
+                }
+                return true;  // Empty list is allowed though.
+            }
+        };
+
+        /**
+         * @hide
+         */
+        public static final Validator PROTECTED_COMPONENTS_MANAGER_VALIDATOR = new Validator() {
+            private final String mDelimiter = "|";
+
+            @Override
+            public boolean validate(String value) {
+                if (!TextUtils.isEmpty(value)) {
+                    final String[] array = TextUtils.split(value, Pattern.quote(mDelimiter));
+                    for (String item : array) {
+                        if (TextUtils.isEmpty(item)) {
+                            return false; // Empty components not allowed
+                        }
+                    }
+                }
+                return true;  // Empty list is allowed though.
+            }
+        };
 
         /**
          * Mapping of validators for all secure settings.  This map is used to validate both valid
@@ -3049,11 +3294,15 @@ public final class LineageSettings {
                 new ArrayMap<String, Validator>();
         static {
             VALIDATORS.put(GESTURE_BACK_EXCLUDE_TOP, GESTURE_BACK_EXCLUDE_TOP_VALIDATOR);
+            VALIDATORS.put(PROTECTED_COMPONENTS, PROTECTED_COMPONENTS_VALIDATOR);
+            VALIDATORS.put(PROTECTED_COMPONENT_MANAGERS, PROTECTED_COMPONENTS_MANAGER_VALIDATOR);
             VALIDATORS.put(NETWORK_TRAFFIC_MODE, NETWORK_TRAFFIC_MODE_VALIDATOR);
             VALIDATORS.put(NETWORK_TRAFFIC_AUTOHIDE, NETWORK_TRAFFIC_AUTOHIDE_VALIDATOR);
             VALIDATORS.put(NETWORK_TRAFFIC_UNITS, NETWORK_TRAFFIC_UNITS_VALIDATOR);
             VALIDATORS.put(NETWORK_TRAFFIC_SHOW_UNITS, NETWORK_TRAFFIC_SHOW_UNITS_VALIDATOR);
             VALIDATORS.put(TETHERING_ALLOW_VPN_UPSTREAMS, TETHERING_ALLOW_VPN_UPSTREAMS_VALIDATOR);
+            VALIDATORS.put(TRUST_NOTIFICATIONS, TRUST_NOTIFICATIONS_VALIDATOR);
+            VALIDATORS.put(TRUST_RESTRICT_USB_KEYGUARD, TRUST_RESTRICT_USB_KEYGUARD_VALIDATOR);
             VALIDATORS.put(TRUST_WARNINGS, TRUST_WARNINGS_VALIDATOR);
             VALIDATORS.put(VOLUME_PANEL_ON_LEFT, VOLUME_PANEL_ON_LEFT_VALIDATOR);
         }
@@ -3069,15 +3318,11 @@ public final class LineageSettings {
 
         public static final String SYS_PROP_LINEAGE_SETTING_VERSION = "sys.lineage_settings_global_version";
 
-        private static final ContentProviderHolder sProviderHolder =
-                new ContentProviderHolder(CONTENT_URI);
-
         private static final NameValueCache sNameValueCache = new NameValueCache(
                 SYS_PROP_LINEAGE_SETTING_VERSION,
                 CONTENT_URI,
                 CALL_METHOD_GET_GLOBAL,
-                CALL_METHOD_PUT_GLOBAL,
-                sProviderHolder);
+                CALL_METHOD_PUT_GLOBAL);
 
         // region Methods
 
@@ -3137,7 +3382,7 @@ public final class LineageSettings {
          * @return the corresponding value, or null if not present
          */
         public static String getString(ContentResolver resolver, String name) {
-            return getStringForUser(resolver, name, resolver.getUserId());
+            return getStringForUser(resolver, name, UserHandle.myUserId());
         }
 
         /**
@@ -3148,7 +3393,7 @@ public final class LineageSettings {
          * @return the corresponding value, or null if not present
          */
         public static String getString(ContentResolver resolver, String name, String def) {
-            String str = getStringForUser(resolver, name, resolver.getUserId());
+            String str = getStringForUser(resolver, name, UserHandle.myUserId());
             return str == null ? def : str;
         }
 
@@ -3166,7 +3411,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putString(ContentResolver resolver, String name, String value) {
-            return putStringForUser(resolver, name, value, resolver.getUserId());
+            return putStringForUser(resolver, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3190,7 +3435,7 @@ public final class LineageSettings {
          * or not a valid integer.
          */
         public static int getInt(ContentResolver cr, String name, int def) {
-            return getIntForUser(cr, name, def, cr.getUserId());
+            return getIntForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3223,7 +3468,7 @@ public final class LineageSettings {
          */
         public static int getInt(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getIntForUser(cr, name, cr.getUserId());
+            return getIntForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3251,7 +3496,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putInt(ContentResolver cr, String name, int value) {
-            return putIntForUser(cr, name, value, cr.getUserId());
+            return putIntForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3275,7 +3520,7 @@ public final class LineageSettings {
          * or not a valid {@code long}.
          */
         public static long getLong(ContentResolver cr, String name, long def) {
-            return getLongForUser(cr, name, def, cr.getUserId());
+            return getLongForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3310,7 +3555,7 @@ public final class LineageSettings {
          */
         public static long getLong(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getLongForUser(cr, name, cr.getUserId());
+            return getLongForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3338,7 +3583,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putLong(ContentResolver cr, String name, long value) {
-            return putLongForUser(cr, name, value, cr.getUserId());
+            return putLongForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3362,7 +3607,7 @@ public final class LineageSettings {
          * or not a valid float.
          */
         public static float getFloat(ContentResolver cr, String name, float def) {
-            return getFloatForUser(cr, name, def, cr.getUserId());
+            return getFloatForUser(cr, name, def, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3396,7 +3641,7 @@ public final class LineageSettings {
          */
         public static float getFloat(ContentResolver cr, String name)
                 throws LineageSettingNotFoundException {
-            return getFloatForUser(cr, name, cr.getUserId());
+            return getFloatForUser(cr, name, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3427,7 +3672,7 @@ public final class LineageSettings {
          * @return true if the value was set, false on database errors
          */
         public static boolean putFloat(ContentResolver cr, String name, float value) {
-            return putFloatForUser(cr, name, value, cr.getUserId());
+            return putFloatForUser(cr, name, value, UserHandle.myUserId());
         }
 
         /** @hide */
@@ -3448,6 +3693,26 @@ public final class LineageSettings {
                 "wake_when_plugged_or_unplugged";
 
         /**
+         * Whether to sound when charger power is connected/disconnected
+         * @hide
+         * @deprecated Use {@link android.provider.Settings.Global#CHARGING_SOUNDS_ENABLED} instead
+         */
+        @Deprecated
+        public static final String POWER_NOTIFICATIONS_ENABLED = "power_notifications_enabled";
+
+        /**
+         * Whether to vibrate when charger power is connected/disconnected
+         * @hide
+         */
+        public static final String POWER_NOTIFICATIONS_VIBRATE = "power_notifications_vibrate";
+
+        /**
+         * URI for power notification sounds
+         * @hide
+         */
+        public static final String POWER_NOTIFICATIONS_RINGTONE = "power_notifications_ringtone";
+
+        /**
          * @hide
          */
         public static final String ZEN_DISABLE_DUCKING_DURING_MEDIA_PLAYBACK =
@@ -3462,18 +3727,19 @@ public final class LineageSettings {
         public static final String WIFI_AUTO_PRIORITIES_CONFIGURATION = "wifi_auto_priority";
 
         /**
-         * Restrict USB
-         * 0 = Off, never
-         * 1 = Only when the screen is locked
-         * 2 = On, always
-         *
+         * Global temperature unit in which the weather data will be reported
+         * Valid values are:
+         * <p>{@link lineageos.providers.WeatherContract.WeatherColumns.TempUnit#CELSIUS}</p>
+         * <p>{@link lineageos.providers.WeatherContract.WeatherColumns.TempUnit#FAHRENHEIT}</p>
+         */
+        public static final String WEATHER_TEMPERATURE_UNIT = "weather_temperature_unit";
+
+        /**
+         * Developer options - Navigation Bar show switch
+         * @deprecated
          * @hide
          */
-        public static final String TRUST_RESTRICT_USB = "trust_restrict_usb";
-
-        /** @hide */
-        public static final Validator TRUST_RESTRICT_USB_VALIDATOR =
-                new InclusiveIntegerRangeValidator(0, 2);
+        public static final String DEV_FORCE_SHOW_NAVBAR = "dev_force_show_navbar";
         // endregion
 
         /**
@@ -3484,18 +3750,12 @@ public final class LineageSettings {
                 "___magical_test_passing_enabler";
 
         /**
-         * Don't
-         * @hide
-         * me bro
-         */
-        public static final Validator __MAGICAL_TEST_PASSING_ENABLER_VALIDATOR =
-                sAlwaysTrueValidator;
-
-        /**
          * @hide
          */
         public static final String[] LEGACY_GLOBAL_SETTINGS = new String[]{
                 LineageSettings.Global.WAKE_WHEN_PLUGGED_OR_UNPLUGGED,
+                LineageSettings.Global.POWER_NOTIFICATIONS_VIBRATE,
+                LineageSettings.Global.POWER_NOTIFICATIONS_RINGTONE,
                 LineageSettings.Global.ZEN_DISABLE_DUCKING_DURING_MEDIA_PLAYBACK,
                 LineageSettings.Global.WIFI_AUTO_PRIORITIES_CONFIGURATION
         };
@@ -3506,22 +3766,5 @@ public final class LineageSettings {
         public static boolean isLegacySetting(String key) {
             return ArrayUtils.contains(LEGACY_GLOBAL_SETTINGS, key);
         }
-
-        /**
-         * Mapping of validators for all global settings.  This map is used to validate both valid
-         * keys as well as validating the values for those keys.
-         *
-         * Note: Make sure if you add a new Global setting you create a Validator for it and add
-         *       it to this map.
-         *
-         * @hide
-         */
-        public static final Map<String, Validator> VALIDATORS =
-                new ArrayMap<String, Validator>();
-        static {
-            VALIDATORS.put(TRUST_RESTRICT_USB, TRUST_RESTRICT_USB_VALIDATOR);
-            VALIDATORS.put(__MAGICAL_TEST_PASSING_ENABLER,
-                    __MAGICAL_TEST_PASSING_ENABLER_VALIDATOR);
-        };
     }
 }

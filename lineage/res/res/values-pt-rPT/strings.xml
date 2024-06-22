@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
      Copyright (C) 2015 The CyanogenMod Project
-                   2017-2022 The LineageOS Project
+               (C) 2017 The LineageOS Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="lineageos_system_label">Sistema LineageOS</string>
+    <string name="lineageos_system_label">/e/ system</string>
     <string name="permlab_modifyProfiles">modificar os perfis de sistema</string>
     <string name="permdesc_modifyProfiles">Permite que uma aplicação modifique os perfis do sistema.</string>
     <string name="permlab_useHardwareFramework">utilizar a framework de hardware</string>
@@ -25,6 +25,8 @@
     <string name="permdesc_writeSettings">Permite que uma aplicação modifique as definições do sistema Lineage.</string>
     <string name="permlab_writeSecureSettings">modificar as definições de segurança do sistema Lineage</string>
     <string name="permdesc_writeSecureSettings">Permite que uma aplicação modifique as definições de segurança do sistema Lineage. Não será usado por aplicações normais.</string>
+    <string name="permlab_protectedApp">adicionar ou remover aplicações às aplicações protegidas</string>
+    <string name="permdesc_protectedApp">Permite que uma aplicação marque outras aplicações como protegidas e as bloqueie.</string>
     <string name="profileNameDefault">Padrão</string>
     <string name="profileNameWork">Trabalho</string>
     <string name="profileNameHome">Casa</string>
@@ -37,6 +39,16 @@
     <string name="profileGroupEmail">E-mail</string>
     <string name="profileGroupSMS">SMS</string>
     <string name="wildcardProfile">Outro</string>
+    <string name="perf_profile_pwrsv">Poupança de bateria</string>
+    <string name="perf_profile_bal">Equilibrado</string>
+    <string name="perf_profile_perf">Desempenho</string>
+    <string name="perf_profile_bias_power">Eficiência</string>
+    <string name="perf_profile_bias_perf">Rápido</string>
+    <string name="perf_profile_pwrsv_summary">Poupança de bateria máxima. Reduz o desempenho do dispositivo</string>
+    <string name="perf_profile_bal_summary">Equilíbrio entre desempenho e consumo de energia</string>
+    <string name="perf_profile_perf_summary">Modo de alto desempenho. Útil para aplicações que necessitam de baixa latência e taxa de transferências mais altas, quando o consumo de energia não é uma preocupação</string>
+    <string name="perf_profile_bias_power_summary">Favorece a poupança de energia. Limita a potência máxima da CPU e otimiza a poupança de energia, resultando num aumento da latência</string>
+    <string name="perf_profile_bias_perf_summary">Favorece o desempenho. Reduz a latência com um aumento ligeiro do consumo de energia</string>
     <string name="live_display_auto">Automático</string>
     <string name="live_display_auto_summary">Ajusta automaticamente a temperatura de cor do ecrã após o pôr do sol e o nascer do sol</string>
     <string name="live_display_off">Desativado</string>
@@ -58,14 +70,30 @@
     <string name="accessibility_quick_settings_live_display_changed_day">LiveDisplay alterado para modo dia.</string>
     <string name="accessibility_quick_settings_live_display_changed_night">LiveDisplay alterado para modo noite.</string>
     <string name="accessibility_quick_settings_live_display_changed_outdoor">LiveDisplay alterado para modo exterior.</string>
+    <string name="permlab_perfAccess">aceder ao gestor de desempenho</string>
+    <string name="permdesc_perfAccessDesc">Permite que uma aplicação aceda ao serviço de desempenho. Nunca deverá ser necessário para aplicações normais.</string>
+    <string name="permlab_weather_read">ler a meteorologia</string>
+    <string name="permdesc_weather_read">Permite que uma aplicação leia conteúdo através do fornecedor de meteorologia.</string>
+    <string name="permlab_weather_write">atualizar o fornecedor de meteorologia</string>
+    <string name="permdesc_weather_write">Permite que uma aplicação atualize o conteúdo do fornecedor de meteorologia.</string>
+    <string name="permlab_weather_bind">vincular-se como um serviço de fornecedor de meteorologia</string>
+    <string name="permdesc_weather_bind">Permite que uma aplicação seja identificada como um serviço de fornecedor de meteorologia.</string>
+    <string name="permlab_weather_access_mgr">aceder ao serviço de meteorologia</string>
+    <string name="permdesc_weather_access_mgr">Permite que uma aplicação aceda ao serviço de meteorologia do sistema. Nunca deverá ser necessário para aplicações normais.</string>
+    <string name="permlab_dataUsageWrite">modificar a base de dados de utilização de dados</string>
+    <string name="permdesc_dataUsageWrite">Permite que uma aplicação atualize o conteúdo da base de dados de utilização de dados.</string>
+    <string name="permlab_dataUsageRead">ler a base de dados de utilização de dados</string>
+    <string name="permdesc_dataUsageRead">Permite que uma aplicação leia o conteúdo da base de dados de utilização de dados.</string>
     <string name="permlab_manageLiveDisplay">gerir as definições do LiveDisplay</string>
     <string name="permdesc_manageLiveDisplay">Permite que uma aplicação configure definições avançadas do ecrã.</string>
+    <string name="permlab_observe_audio_sessions">observar as alterações da sessão de som</string>
+    <string name="permdesc_observe_audio_sessions">Permite que uma aplicação observe a criação e destruição de fluxos de som.</string>
     <string name="permlab_manageRemotePrefs">gerir definições remotas</string>
     <string name="permdesc_manageRemotePrefs">Permite que uma aplicação possa gerir definições remotas</string>
     <string name="build_date">Data de compilação</string>
     <string name="lineage_api_level">Nível da API LineageOS</string>
-    <string name="lineage_updates">Atualizações LineageOS</string>
-    <string name="lineage_version">Versão LineageOS</string>
+    <string name="lineage_updates">System updates</string>
+    <string name="lineage_version">/e/ version</string>
     <string name="lineage_vendor_security_patch">Nível do patch de segurança do fabricante</string>
     <string name="unknown">Desconhecido</string>
     <string name="app_killed_message">Aplicação terminada</string>

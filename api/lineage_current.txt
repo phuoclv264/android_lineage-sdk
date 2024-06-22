@@ -94,6 +94,7 @@ package lineageos.app {
     method public void addProfile(lineageos.app.Profile);
     method public lineageos.app.Profile getActiveProfile();
     method public static lineageos.app.ProfileManager getInstance(android.content.Context);
+    method public deprecated lineageos.app.Profile getProfile(java.lang.String);
     method public lineageos.app.Profile getProfile(java.util.UUID);
     method public java.lang.String[] getProfileNames();
     method public lineageos.app.Profile[] getProfiles();
@@ -102,6 +103,7 @@ package lineageos.app {
     method public boolean profileExists(java.util.UUID);
     method public void removeProfile(lineageos.app.Profile);
     method public void resetAll();
+    method public deprecated void setActiveProfile(java.lang.String);
     method public void setActiveProfile(java.util.UUID);
     method public void updateProfile(lineageos.app.Profile);
     field public static final java.lang.String ACTION_PROFILE_PICKER = "lineageos.platform.intent.action.PROFILE_PICKER";
@@ -129,6 +131,10 @@ package lineageos.content {
 
   public class Intent {
     ctor public Intent();
+    field public static final java.lang.String ACTION_PROTECTED = "lineageos.intent.action.PACKAGE_PROTECTED";
+    field public static final java.lang.String ACTION_PROTECTED_CHANGED = "lineageos.intent.action.PROTECTED_COMPONENT_UPDATE";
+    field public static final java.lang.String EXTRA_PROTECTED_COMPONENTS = "lineageos.intent.extra.PACKAGE_PROTECTED_COMPONENTS";
+    field public static final java.lang.String EXTRA_PROTECTED_STATE = "lineageos.intent.extra.PACKAGE_PROTECTED_STATE";
   }
 
 }
@@ -190,16 +196,13 @@ package lineageos.hardware {
     method public boolean setTouchscreenGestureEnabled(lineageos.hardware.TouchscreenGesture, boolean);
     method public boolean setVibratorIntensity(int);
     field public static final int FEATURE_ADAPTIVE_BACKLIGHT = 1; // 0x1
-    field public static final int FEATURE_ANTI_FLICKER = 2097152; // 0x200000
     field public static final int FEATURE_AUTO_CONTRAST = 4096; // 0x1000
     field public static final int FEATURE_COLOR_BALANCE = 131072; // 0x20000
     field public static final int FEATURE_COLOR_ENHANCEMENT = 2; // 0x2
     field public static final int FEATURE_DISPLAY_COLOR_CALIBRATION = 4; // 0x4
     field public static final int FEATURE_DISPLAY_MODES = 8192; // 0x2000
-    field public static final int FEATURE_HIGH_TOUCH_POLLING_RATE = 8; // 0x8
     field public static final int FEATURE_HIGH_TOUCH_SENSITIVITY = 16; // 0x10
     field public static final int FEATURE_KEY_DISABLE = 32; // 0x20
-    field public static final int FEATURE_KEY_SWAP = 64; // 0x40
     field public static final int FEATURE_PICTURE_ADJUSTMENT = 262144; // 0x40000
     field public static final int FEATURE_READING_ENHANCEMENT = 16384; // 0x4000
     field public static final int FEATURE_SUNLIGHT_ENHANCEMENT = 256; // 0x100
@@ -241,7 +244,6 @@ package lineageos.hardware {
     method public int getMode();
     method public int getNightColorTemperature();
     method public lineageos.hardware.HSIC getPictureAdjustment();
-    method public boolean isAntiFlickerEnabled();
     method public boolean isAutoContrastEnabled();
     method public boolean isAutomaticOutdoorModeEnabled();
     method public boolean isCABCEnabled();
@@ -260,7 +262,6 @@ package lineageos.hardware {
     field public static final int ADJUSTMENT_HUE = 0; // 0x0
     field public static final int ADJUSTMENT_INTENSITY = 2; // 0x2
     field public static final int ADJUSTMENT_SATURATION = 1; // 0x1
-    field public static final int FEATURE_ANTI_FLICKER = 19; // 0x13
     field public static final int FEATURE_AUTO_CONTRAST = 11; // 0xb
     field public static final int FEATURE_CABC = 10; // 0xa
     field public static final int FEATURE_COLOR_ADJUSTMENT = 13; // 0xd
@@ -336,14 +337,21 @@ package lineageos.platform {
 
   public static final class Manifest.permission {
     ctor public Manifest.permission();
+    field public static final java.lang.String ACCESS_WEATHER_MANAGER = "lineageos.permission.ACCESS_WEATHER_MANAGER";
+    field public static final java.lang.String BIND_WEATHER_PROVIDER_SERVICE = "lineageos.permission.BIND_WEATHER_PROVIDER_SERVICE";
     field public static final java.lang.String HARDWARE_ABSTRACTION_ACCESS = "lineageos.permission.HARDWARE_ABSTRACTION_ACCESS";
     field public static final java.lang.String MANAGE_LIVEDISPLAY = "lineageos.permission.MANAGE_LIVEDISPLAY";
     field public static final java.lang.String MANAGE_REMOTE_PREFERENCES = "lineageos.permission.MANAGE_REMOTE_PREFERENCES";
     field public static final java.lang.String MODIFY_PROFILES = "lineageos.permission.MODIFY_PROFILES";
     field public static final java.lang.String PERFORMANCE_ACCESS = "lineageos.permission.PERFORMANCE_ACCESS";
+    field public static final java.lang.String PROTECTED_APP = "lineageos.permission.PROTECTED_APP";
+    field public static final java.lang.String READ_DATAUSAGE = "lineageos.permission.READ_DATAUSAGE";
+    field public static final java.lang.String READ_WEATHER = "lineageos.permission.READ_WEATHER";
     field public static final java.lang.String TRUST_INTERFACE = "lineageos.permission.TRUST_INTERFACE";
+    field public static final java.lang.String WRITE_DATAUSAGE = "lineageos.permission.WRITE_DATAUSAGE";
     field public static final java.lang.String WRITE_SECURE_SETTINGS = "lineageos.permission.WRITE_SECURE_SETTINGS";
     field public static final java.lang.String WRITE_SETTINGS = "lineageos.permission.WRITE_SETTINGS";
+    field public static final java.lang.String WRITE_WEATHER = "lineageos.permission.WRITE_WEATHER";
   }
 
   public final class R {
@@ -402,6 +410,40 @@ package lineageos.platform {
 
 }
 
+package lineageos.power {
+
+  public class PerformanceManager {
+    method public lineageos.power.PerformanceProfile getActivePowerProfile();
+    method public static lineageos.power.PerformanceManager getInstance(android.content.Context);
+    method public int getNumberOfProfiles();
+    method public int getPowerProfile();
+    method public lineageos.power.PerformanceProfile getPowerProfile(int);
+    method public java.util.SortedSet<lineageos.power.PerformanceProfile> getPowerProfiles();
+    method public boolean setPowerProfile(int);
+    method public boolean setPowerProfile(lineageos.power.PerformanceProfile);
+    field public static final java.lang.String POWER_PROFILE_CHANGED = "lineageos.power.PROFILE_CHANGED";
+    field public static final int PROFILE_BALANCED = 1; // 0x1
+    field public static final int PROFILE_BIAS_PERFORMANCE = 4; // 0x4
+    field public static final int PROFILE_BIAS_POWER_SAVE = 3; // 0x3
+    field public static final int PROFILE_HIGH_PERFORMANCE = 2; // 0x2
+    field public static final int PROFILE_POWER_SAVE = 0; // 0x0
+    field public static final java.lang.String TAG = "PerformanceManager";
+  }
+
+  public class PerformanceProfile implements java.lang.Comparable android.os.Parcelable {
+    ctor public PerformanceProfile(int, float, java.lang.String, java.lang.String);
+    method public int compareTo(lineageos.power.PerformanceProfile);
+    method public int describeContents();
+    method public java.lang.String getDescription();
+    method public int getId();
+    method public java.lang.String getName();
+    method public float getWeight();
+    method public void writeToParcel(android.os.Parcel, int);
+    field public static final android.os.Parcelable.Creator<lineageos.power.PerformanceProfile> CREATOR;
+  }
+
+}
+
 package lineageos.preference {
 
   public class GlobalSettingSwitchPreference extends lineageos.preference.SelfRemovingSwitchPreference {
@@ -415,12 +457,6 @@ package lineageos.preference {
     ctor public LineageGlobalSettingSwitchPreference(android.content.Context, android.util.AttributeSet);
     ctor public LineageGlobalSettingSwitchPreference(android.content.Context);
   }
-
-    public class LineageGlobalSettingListPreference extends lineageos.preference.SelfRemovingListPreference {
-      ctor public LineageGlobalSettingListPreference(android.content.Context, android.util.AttributeSet, int);
-      ctor public LineageGlobalSettingListPreference(android.content.Context, android.util.AttributeSet);
-      method public int getIntValue(int);
-    }
 
   public class LineageSecureSettingListPreference extends lineageos.preference.SelfRemovingListPreference {
     ctor public LineageSecureSettingListPreference(android.content.Context, android.util.AttributeSet, int);
@@ -593,6 +629,8 @@ package lineageos.profiles {
     field public static final int PROFILE_CONNECTION_SYNC = 5; // 0x5
     field public static final int PROFILE_CONNECTION_WIFI = 1; // 0x1
     field public static final int PROFILE_CONNECTION_WIFIAP = 2; // 0x2
+    field public static final deprecated int PROFILE_CONNECTION_GPS = 4; // 0x4
+    field public static final deprecated int PROFILE_CONNECTION_WIMAX = 3; // 0x3
   }
 
   public static class ConnectionSettings.BooleanState {
@@ -643,6 +681,39 @@ package lineageos.profiles {
 
 package lineageos.providers {
 
+  public final class DataUsageContract {
+    ctor public DataUsageContract();
+    field public static final java.lang.String ACTIVE = "active";
+    field public static final android.net.Uri BASE_CONTENT_URI;
+    field public static final java.lang.String BYTES = "bytes";
+    field public static final int COLUMN_OF_ACTIVE = 3; // 0x3
+    field public static final int COLUMN_OF_BYTES = 5; // 0x5
+    field public static final int COLUMN_OF_ENABLE = 2; // 0x2
+    field public static final int COLUMN_OF_EXTRA = 10; // 0xa
+    field public static final int COLUMN_OF_FAST_AVG = 8; // 0x8
+    field public static final int COLUMN_OF_FAST_SAMPLES = 9; // 0x9
+    field public static final int COLUMN_OF_ID = 0; // 0x0
+    field public static final int COLUMN_OF_LABEL = 4; // 0x4
+    field public static final int COLUMN_OF_SLOW_AVG = 6; // 0x6
+    field public static final int COLUMN_OF_SLOW_SAMPLES = 7; // 0x7
+    field public static final int COLUMN_OF_UID = 1; // 0x1
+    field public static final java.lang.String CONTENT_ITEM_TYPE = "vnd.android.cursor.itemdatausage_item";
+    field public static final java.lang.String CONTENT_TYPE = "vnd.android.cursor.dirdatausage_item";
+    field public static final android.net.Uri CONTENT_URI;
+    field public static final java.lang.String DATAUSAGE_AUTHORITY = "org.lineageos.providers.datausage";
+    field public static final java.lang.String DATAUSAGE_TABLE = "datausage";
+    field public static final java.lang.String ENABLE = "enable";
+    field public static final java.lang.String EXTRA = "extra";
+    field public static final java.lang.String FAST_AVG = "fast_avg";
+    field public static final java.lang.String FAST_SAMPLES = "fast_samples";
+    field public static final java.lang.String LABEL = "label";
+    field public static final java.lang.String[] PROJECTION_ALL;
+    field public static final java.lang.String SLOW_AVG = "slow_avg";
+    field public static final java.lang.String SLOW_SAMPLES = "slow_samples";
+    field public static final java.lang.String UID = "uid";
+    field public static final java.lang.String _ID = "_id";
+  }
+
   public final class LineageSettings {
     ctor public LineageSettings();
     field public static final java.lang.String ACTION_DATA_USAGE = "lineageos.settings.ACTION_DATA_USAGE";
@@ -668,6 +739,7 @@ package lineageos.providers {
     method public static boolean putString(android.content.ContentResolver, java.lang.String, java.lang.String);
     field public static final android.net.Uri CONTENT_URI;
     field public static final java.lang.String SYS_PROP_LINEAGE_SETTING_VERSION = "sys.lineage_settings_global_version";
+    field public static final java.lang.String WEATHER_TEMPERATURE_UNIT = "weather_temperature_unit";
   }
 
   public static class LineageSettings.LineageSettingNotFoundException extends android.util.AndroidException {
@@ -691,6 +763,7 @@ package lineageos.providers {
     method public static boolean putString(android.content.ContentResolver, java.lang.String, java.lang.String);
     field public static final android.net.Uri CONTENT_URI;
     field public static final java.lang.String SYS_PROP_LINEAGE_SETTING_VERSION = "sys.lineage_settings_secure_version";
+    field public static final deprecated java.lang.String TRUST_NOTIFICATIONS = "trust_notifications";
     field public static final java.lang.String TRUST_WARNINGS = "trust_warnings";
   }
 
@@ -719,6 +792,10 @@ package lineageos.providers {
     field public static final java.lang.String BATTERY_LIGHT_LOW_COLOR = "battery_light_low_color";
     field public static final java.lang.String BATTERY_LIGHT_MEDIUM_COLOR = "battery_light_medium_color";
     field public static final java.lang.String BATTERY_LIGHT_PULSE = "battery_light_pulse";
+    field public static final java.lang.String BERRY_CURRENT_ACCENT = "berry_current_accent";
+    field public static final java.lang.String BERRY_DARK_OVERLAY = "berry_dark_overlay";
+    field public static final java.lang.String BERRY_GLOBAL_STYLE = "berry_global_style";
+    field public static final java.lang.String BERRY_MANAGED_BY_APP = "berry_managed_by_app";
     field public static final java.lang.String BLUETOOTH_ACCEPT_ALL_FILES = "bluetooth_accept_all_files";
     field public static final java.lang.String BUTTON_BACKLIGHT_ONLY_WHEN_PRESSED = "button_backlight_only_when_pressed";
     field public static final java.lang.String CALL_RECORDING_FORMAT = "call_recording_format";
@@ -726,20 +803,25 @@ package lineageos.providers {
     field public static final java.lang.String CAMERA_SLEEP_ON_RELEASE = "camera_sleep_on_release";
     field public static final java.lang.String CAMERA_WAKE_SCREEN = "camera_wake_screen";
     field public static final android.net.Uri CONTENT_URI;
-    field public static final java.lang.String DISPLAY_ANTI_FLICKER = "display_anti_flicker";
+    field public static final java.lang.String DIALER_OPENCNAM_ACCOUNT_SID = "dialer_opencnam_account_sid";
+    field public static final java.lang.String DIALER_OPENCNAM_AUTH_TOKEN = "dialer_opencnam_auth_token";
     field public static final java.lang.String DISPLAY_AUTO_CONTRAST = "display_auto_contrast";
     field public static final java.lang.String DISPLAY_AUTO_OUTDOOR_MODE = "display_auto_outdoor_mode";
     field public static final java.lang.String DISPLAY_CABC = "display_low_power";
     field public static final java.lang.String DISPLAY_COLOR_ADJUSTMENT = "display_color_adjustment";
     field public static final java.lang.String DISPLAY_COLOR_ENHANCE = "display_color_enhance";
+    field public static final deprecated java.lang.String DISPLAY_LOW_POWER = "display_low_power";
     field public static final java.lang.String DISPLAY_PICTURE_ADJUSTMENT = "display_picture_adjustment";
     field public static final java.lang.String DISPLAY_READING_MODE = "display_reading_mode";
     field public static final java.lang.String DISPLAY_TEMPERATURE_DAY = "display_temperature_day";
     field public static final java.lang.String DISPLAY_TEMPERATURE_MODE = "display_temperature_mode";
     field public static final java.lang.String DISPLAY_TEMPERATURE_NIGHT = "display_temperature_night";
     field public static final java.lang.String DOUBLE_TAP_SLEEP_GESTURE = "double_tap_sleep_gesture";
+    field public static final java.lang.String ENABLE_FORWARD_LOOKUP = "enable_forward_lookup";
+    field public static final java.lang.String ENABLE_PEOPLE_LOOKUP = "enable_people_lookup";
+    field public static final java.lang.String ENABLE_REVERSE_LOOKUP = "enable_reverse_lookup";
+    field public static final java.lang.String FORWARD_LOOKUP_PROVIDER = "forward_lookup_provider";
     field public static final java.lang.String HEADSET_CONNECT_PLAYER = "headset_connect_player";
-    field public static final java.lang.String HIGH_TOUCH_POLLING_RATE_ENABLE = "high_touch_polling_rate_enable";
     field public static final java.lang.String HIGH_TOUCH_SENSITIVITY_ENABLE = "high_touch_sensitivity_enable";
     field public static final java.lang.String HOME_WAKE_SCREEN = "home_wake_screen";
     field public static final java.lang.String INCREASING_RING = "increasing_ring";
@@ -777,17 +859,21 @@ package lineageos.providers {
     field public static final java.lang.String NOTIFICATION_LIGHT_PULSE_VMAIL_LED_ON = "notification_light_pulse_vmail_led_on";
     field public static final java.lang.String NOTIFICATION_LIGHT_SCREEN_ON = "notification_light_screen_on_enable";
     field public static final java.lang.String NOTIFICATION_PLAY_QUEUE = "notification_play_queue";
+    field public static final java.lang.String PEOPLE_LOOKUP_PROVIDER = "people_lookup_provider";
     field public static final java.lang.String PROXIMITY_ON_WAKE = "proximity_on_wake";
     field public static final java.lang.String QS_SHOW_BRIGHTNESS_SLIDER = "qs_show_brightness_slider";
     field public static final java.lang.String RECENTS_SHOW_SEARCH_BAR = "recents_show_search_bar";
+    field public static final java.lang.String REVERSE_LOOKUP_PROVIDER = "reverse_lookup_provider";
     field public static final java.lang.String SHOW_ALARM_ICON = "show_alarm_icon";
     field public static final java.lang.String STATUS_BAR_AM_PM = "status_bar_am_pm";
     field public static final java.lang.String STATUS_BAR_BATTERY_STYLE = "status_bar_battery_style";
     field public static final java.lang.String STATUS_BAR_BRIGHTNESS_CONTROL = "status_bar_brightness_control";
     field public static final java.lang.String STATUS_BAR_CLOCK = "status_bar_clock";
     field public static final java.lang.String STATUS_BAR_IME_SWITCHER = "status_bar_ime_switcher";
+    field public static final java.lang.String STATUS_BAR_NOTIF_COUNT = "status_bar_notif_count";
     field public static final java.lang.String STATUS_BAR_QUICK_QS_PULLDOWN = "qs_quick_pulldown";
     field public static final java.lang.String STATUS_BAR_SHOW_BATTERY_PERCENT = "status_bar_show_battery_percent";
+    field public static final java.lang.String STATUS_BAR_SHOW_WEATHER = "status_bar_show_weather";
     field public static final java.lang.String STYLUS_ICON_ENABLED = "stylus_icon_enabled";
     field public static final java.lang.String SWAP_VOLUME_KEYS_ON_ROTATION = "swap_volume_keys_on_rotation";
     field public static final java.lang.String SYSTEM_PROFILES_ENABLED = "system_profiles_enabled";
@@ -803,6 +889,95 @@ package lineageos.providers {
     field public static final java.lang.String VOLUME_WAKE_SCREEN = "volume_wake_screen";
     field public static final java.lang.String ZEN_ALLOW_LIGHTS = "allow_lights";
     field public static final java.lang.String ZEN_PRIORITY_ALLOW_LIGHTS = "zen_priority_allow_lights";
+  }
+
+  public class WeatherContract {
+    ctor public WeatherContract();
+    field public static final java.lang.String AUTHORITY = "org.lineageos.weather";
+    field public static final android.net.Uri AUTHORITY_URI;
+  }
+
+  public static class WeatherContract.WeatherColumns {
+    ctor public WeatherContract.WeatherColumns();
+    field public static final android.net.Uri CONTENT_URI;
+    field public static final android.net.Uri CURRENT_AND_FORECAST_WEATHER_URI;
+    field public static final java.lang.String CURRENT_CITY = "city";
+    field public static final java.lang.String CURRENT_CONDITION = "condition";
+    field public static final java.lang.String CURRENT_CONDITION_CODE = "condition_code";
+    field public static final java.lang.String CURRENT_HUMIDITY = "humidity";
+    field public static final java.lang.String CURRENT_TEMPERATURE = "temperature";
+    field public static final java.lang.String CURRENT_TEMPERATURE_UNIT = "temperature_unit";
+    field public static final java.lang.String CURRENT_TIMESTAMP = "timestamp";
+    field public static final android.net.Uri CURRENT_WEATHER_URI;
+    field public static final java.lang.String CURRENT_WIND_DIRECTION = "wind_direction";
+    field public static final java.lang.String CURRENT_WIND_SPEED = "wind_speed";
+    field public static final java.lang.String CURRENT_WIND_SPEED_UNIT = "wind_speed_unit";
+    field public static final java.lang.String FORECAST_CONDITION = "forecast_condition";
+    field public static final java.lang.String FORECAST_CONDITION_CODE = "forecast_condition_code";
+    field public static final java.lang.String FORECAST_HIGH = "forecast_high";
+    field public static final java.lang.String FORECAST_LOW = "forecast_low";
+    field public static final android.net.Uri FORECAST_WEATHER_URI;
+    field public static final java.lang.String TODAYS_HIGH_TEMPERATURE = "todays_high";
+    field public static final java.lang.String TODAYS_LOW_TEMPERATURE = "todays_low";
+  }
+
+  public static final class WeatherContract.WeatherColumns.TempUnit {
+    field public static final int CELSIUS = 1; // 0x1
+    field public static final int FAHRENHEIT = 2; // 0x2
+  }
+
+  public static final class WeatherContract.WeatherColumns.WeatherCode {
+    field public static final int BLOWING_SNOW = 14; // 0xe
+    field public static final int BLUSTERY = 22; // 0x16
+    field public static final int CLEAR_NIGHT = 30; // 0x1e
+    field public static final int CLOUDY = 25; // 0x19
+    field public static final int COLD = 24; // 0x18
+    field public static final int DRIZZLE = 9; // 0x9
+    field public static final int DUST = 18; // 0x12
+    field public static final int FAIR_DAY = 33; // 0x21
+    field public static final int FAIR_NIGHT = 32; // 0x20
+    field public static final int FOGGY = 19; // 0x13
+    field public static final int FREEZING_DRIZZLE = 8; // 0x8
+    field public static final int FREEZING_RAIN = 10; // 0xa
+    field public static final int HAIL = 16; // 0x10
+    field public static final int HAZE = 20; // 0x14
+    field public static final int HEAVY_SNOW = 39; // 0x27
+    field public static final int HOT = 35; // 0x23
+    field public static final int HURRICANE = 2; // 0x2
+    field public static final int ISOLATED_THUNDERSHOWERS = 44; // 0x2c
+    field public static final int ISOLATED_THUNDERSTORMS = 36; // 0x24
+    field public static final int LIGHT_SNOW_SHOWERS = 13; // 0xd
+    field public static final int MIXED_RAIN_AND_HAIL = 34; // 0x22
+    field public static final int MIXED_RAIN_AND_SLEET = 6; // 0x6
+    field public static final int MIXED_RAIN_AND_SNOW = 5; // 0x5
+    field public static final int MIXED_SNOW_AND_SLEET = 7; // 0x7
+    field public static final int MOSTLY_CLOUDY_DAY = 27; // 0x1b
+    field public static final int MOSTLY_CLOUDY_NIGHT = 26; // 0x1a
+    field public static final int NOT_AVAILABLE = 3200; // 0xc80
+    field public static final int PARTLY_CLOUDY = 41; // 0x29
+    field public static final int PARTLY_CLOUDY_DAY = 29; // 0x1d
+    field public static final int PARTLY_CLOUDY_NIGHT = 28; // 0x1c
+    field public static final int SCATTERED_SHOWERS = 38; // 0x26
+    field public static final int SCATTERED_SNOW_SHOWERS = 40; // 0x28
+    field public static final int SCATTERED_THUNDERSTORMS = 37; // 0x25
+    field public static final int SEVERE_THUNDERSTORMS = 3; // 0x3
+    field public static final int SHOWERS = 11; // 0xb
+    field public static final int SLEET = 17; // 0x11
+    field public static final int SMOKY = 21; // 0x15
+    field public static final int SNOW = 15; // 0xf
+    field public static final int SNOW_FLURRIES = 12; // 0xc
+    field public static final int SNOW_SHOWERS = 43; // 0x2b
+    field public static final int SUNNY = 31; // 0x1f
+    field public static final int THUNDERSHOWER = 42; // 0x2a
+    field public static final int THUNDERSTORMS = 4; // 0x4
+    field public static final int TORNADO = 0; // 0x0
+    field public static final int TROPICAL_STORM = 1; // 0x1
+    field public static final int WINDY = 23; // 0x17
+  }
+
+  public static final class WeatherContract.WeatherColumns.WindSpeedUnit {
+    field public static final int KPH = 1; // 0x1
+    field public static final int MPH = 2; // 0x2
   }
 
 }
@@ -845,3 +1020,159 @@ package lineageos.util {
   }
 
 }
+
+package lineageos.weather {
+
+  public class LineageWeatherManager {
+    method public void cancelRequest(int);
+    method public java.lang.String getActiveWeatherServiceProviderLabel();
+    method public static lineageos.weather.LineageWeatherManager getInstance(android.content.Context);
+    method public int lookupCity(java.lang.String, lineageos.weather.LineageWeatherManager.LookupCityRequestListener);
+    method public void registerWeatherServiceProviderChangeListener(lineageos.weather.LineageWeatherManager.WeatherServiceProviderChangeListener);
+    method public int requestWeatherUpdate(android.location.Location, lineageos.weather.LineageWeatherManager.WeatherUpdateRequestListener);
+    method public int requestWeatherUpdate(lineageos.weather.WeatherLocation, lineageos.weather.LineageWeatherManager.WeatherUpdateRequestListener);
+    method public void unregisterWeatherServiceProviderChangeListener(lineageos.weather.LineageWeatherManager.WeatherServiceProviderChangeListener);
+  }
+
+  public static abstract interface LineageWeatherManager.LookupCityRequestListener {
+    method public abstract void onLookupCityRequestCompleted(int, java.util.List<lineageos.weather.WeatherLocation>);
+  }
+
+  public static final class LineageWeatherManager.RequestStatus {
+    field public static final int ALREADY_IN_PROGRESS = -3; // 0xfffffffd
+    field public static final int COMPLETED = 1; // 0x1
+    field public static final int FAILED = -1; // 0xffffffff
+    field public static final int NO_MATCH_FOUND = -4; // 0xfffffffc
+    field public static final int SUBMITTED_TOO_SOON = -2; // 0xfffffffe
+  }
+
+  public static abstract interface LineageWeatherManager.WeatherServiceProviderChangeListener {
+    method public abstract void onWeatherServiceProviderChanged(java.lang.String);
+  }
+
+  public static abstract interface LineageWeatherManager.WeatherUpdateRequestListener {
+    method public abstract void onWeatherRequestCompleted(int, lineageos.weather.WeatherInfo);
+  }
+
+  public final class RequestInfo implements android.os.Parcelable {
+    method public int describeContents();
+    method public java.lang.String getCityName();
+    method public android.location.Location getLocation();
+    method public int getRequestType();
+    method public int getTemperatureUnit();
+    method public lineageos.weather.WeatherLocation getWeatherLocation();
+    method public void writeToParcel(android.os.Parcel, int);
+    field public static final android.os.Parcelable.Creator<lineageos.weather.RequestInfo> CREATOR;
+    field public static final int TYPE_LOOKUP_CITY_NAME_REQ = 3; // 0x3
+    field public static final int TYPE_WEATHER_BY_GEO_LOCATION_REQ = 1; // 0x1
+    field public static final int TYPE_WEATHER_BY_WEATHER_LOCATION_REQ = 2; // 0x2
+  }
+
+  public final class WeatherInfo implements android.os.Parcelable {
+    method public int describeContents();
+    method public java.lang.String getCity();
+    method public int getConditionCode();
+    method public java.util.List<lineageos.weather.WeatherInfo.DayForecast> getForecasts();
+    method public double getHumidity();
+    method public double getTemperature();
+    method public int getTemperatureUnit();
+    method public long getTimestamp();
+    method public double getTodaysHigh();
+    method public double getTodaysLow();
+    method public double getWindDirection();
+    method public double getWindSpeed();
+    method public int getWindSpeedUnit();
+    method public void writeToParcel(android.os.Parcel, int);
+    field public static final android.os.Parcelable.Creator<lineageos.weather.WeatherInfo> CREATOR;
+  }
+
+  public static class WeatherInfo.Builder {
+    ctor public WeatherInfo.Builder(java.lang.String, double, int);
+    method public lineageos.weather.WeatherInfo build();
+    method public lineageos.weather.WeatherInfo.Builder setForecast(java.util.List<lineageos.weather.WeatherInfo.DayForecast>);
+    method public lineageos.weather.WeatherInfo.Builder setHumidity(double);
+    method public lineageos.weather.WeatherInfo.Builder setTimestamp(long);
+    method public lineageos.weather.WeatherInfo.Builder setTodaysHigh(double);
+    method public lineageos.weather.WeatherInfo.Builder setTodaysLow(double);
+    method public lineageos.weather.WeatherInfo.Builder setWeatherCondition(int);
+    method public lineageos.weather.WeatherInfo.Builder setWind(double, double, int);
+  }
+
+  public static class WeatherInfo.DayForecast implements android.os.Parcelable {
+    method public int describeContents();
+    method public int getConditionCode();
+    method public double getHigh();
+    method public double getLow();
+    method public void writeToParcel(android.os.Parcel, int);
+    field public static final android.os.Parcelable.Creator<lineageos.weather.WeatherInfo.DayForecast> CREATOR;
+  }
+
+  public static class WeatherInfo.DayForecast.Builder {
+    ctor public WeatherInfo.DayForecast.Builder(int);
+    method public lineageos.weather.WeatherInfo.DayForecast build();
+    method public lineageos.weather.WeatherInfo.DayForecast.Builder setHigh(double);
+    method public lineageos.weather.WeatherInfo.DayForecast.Builder setLow(double);
+  }
+
+  public final class WeatherLocation implements android.os.Parcelable {
+    method public int describeContents();
+    method public java.lang.String getCity();
+    method public java.lang.String getCityId();
+    method public java.lang.String getCountry();
+    method public java.lang.String getCountryId();
+    method public java.lang.String getPostalCode();
+    method public java.lang.String getState();
+    method public void writeToParcel(android.os.Parcel, int);
+    field public static final android.os.Parcelable.Creator<lineageos.weather.WeatherLocation> CREATOR;
+  }
+
+  public static class WeatherLocation.Builder {
+    ctor public WeatherLocation.Builder(java.lang.String, java.lang.String);
+    ctor public WeatherLocation.Builder(java.lang.String);
+    method public lineageos.weather.WeatherLocation build();
+    method public lineageos.weather.WeatherLocation.Builder setCountry(java.lang.String);
+    method public lineageos.weather.WeatherLocation.Builder setCountryId(java.lang.String);
+    method public lineageos.weather.WeatherLocation.Builder setPostalCode(java.lang.String);
+    method public lineageos.weather.WeatherLocation.Builder setState(java.lang.String);
+  }
+
+}
+
+package lineageos.weatherservice {
+
+  public final class ServiceRequest {
+    method public void complete(lineageos.weatherservice.ServiceRequestResult);
+    method public void fail();
+    method public lineageos.weather.RequestInfo getRequestInfo();
+    method public void reject(int);
+  }
+
+  public final class ServiceRequestResult implements android.os.Parcelable {
+    method public int describeContents();
+    method public java.util.List<lineageos.weather.WeatherLocation> getLocationLookupList();
+    method public lineageos.weather.WeatherInfo getWeatherInfo();
+    method public void writeToParcel(android.os.Parcel, int);
+    field public static final android.os.Parcelable.Creator<lineageos.weatherservice.ServiceRequestResult> CREATOR;
+  }
+
+  public static class ServiceRequestResult.Builder {
+    ctor public ServiceRequestResult.Builder();
+    ctor public ServiceRequestResult.Builder(lineageos.weather.WeatherInfo);
+    ctor public ServiceRequestResult.Builder(java.util.List<lineageos.weather.WeatherLocation>);
+    method public lineageos.weatherservice.ServiceRequestResult build();
+  }
+
+  public abstract class WeatherProviderService extends android.app.Service {
+    ctor public WeatherProviderService();
+    method protected final void attachBaseContext(android.content.Context);
+    method public final android.os.IBinder onBind(android.content.Intent);
+    method protected void onConnected();
+    method protected void onDisconnected();
+    method protected abstract void onRequestCancelled(lineageos.weatherservice.ServiceRequest);
+    method protected abstract void onRequestSubmitted(lineageos.weatherservice.ServiceRequest);
+    field public static final java.lang.String SERVICE_INTERFACE = "lineageos.weatherservice.WeatherProviderService";
+    field public static final java.lang.String SERVICE_META_DATA = "lineageos.weatherservice";
+  }
+
+}
+

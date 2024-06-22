@@ -1,6 +1,5 @@
 /**
- * Copyright (C) 2016 The CyanogenMod Project
- *               2021 The LineageOS Project
+ * Copyright (c) 2016, The CyanogenMod Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,6 +54,15 @@ public class LineageSettingsProviderDefaultsTest extends AndroidTestCase {
                 LineageSettings.System.NOTIFICATION_LIGHT_BRIGHTNESS_LEVEL,
                 "R.integer.def_notification_brightness_level"));
         SYSTEM_SETTINGS_DEFAULTS.add(new Setting(
+                LineageSettings.System.ENABLE_FORWARD_LOOKUP,
+                "R.integer.def_forward_lookup"));
+        SYSTEM_SETTINGS_DEFAULTS.add(new Setting(
+                LineageSettings.System.ENABLE_PEOPLE_LOOKUP,
+                "R.integer.def_people_lookup"));
+        SYSTEM_SETTINGS_DEFAULTS.add(new Setting(
+                LineageSettings.System.ENABLE_REVERSE_LOOKUP,
+                "R.integer.def_reverse_lookup"));
+        SYSTEM_SETTINGS_DEFAULTS.add(new Setting(
                 LineageSettings.System.SYSTEM_PROFILES_ENABLED,
                 "R.bool.def_profiles_enabled"));
         SYSTEM_SETTINGS_DEFAULTS.add(new Setting(
@@ -77,21 +85,34 @@ public class LineageSettingsProviderDefaultsTest extends AndroidTestCase {
     //SECURE
     static {
         SECURE_SETTINGS_DEFAULTS.add(new Setting(
+                LineageSettings.Secure.ADVANCED_MODE,
+                "R.bool.def_advanced_mode"));
+        SECURE_SETTINGS_DEFAULTS.add(new Setting(
                 LineageSettings.Secure.STATS_COLLECTION,
                 "R.bool.def_stats_collection"));
         SECURE_SETTINGS_DEFAULTS.add(new Setting(
                 LineageSettings.Secure.LOCKSCREEN_VISUALIZER_ENABLED,
                 "R.bool.def_lockscreen_visualizer"));
+        SECURE_SETTINGS_DEFAULTS.add(new Setting(
+                LineageSettings.Secure.PROTECTED_COMPONENT_MANAGERS,
+                "R.string.def_protected_component_managers"));
     }
 
     //GLOBAL
-    /*
     static {
         GLOBAL_SETTINGS_DEFAULTS.add(new Setting(
-                LineageSettings.Global.WAKE_WHEN_PLUGGED_OR_UNPLUGGED,
-                false));
+                LineageSettings.Global.POWER_NOTIFICATIONS_ENABLED,
+                "R.bool.def_power_notifications_enabled"));
+        GLOBAL_SETTINGS_DEFAULTS.add(new Setting(
+                LineageSettings.Global.POWER_NOTIFICATIONS_VIBRATE,
+                "R.bool.def_power_notifications_vibrate"));
+        GLOBAL_SETTINGS_DEFAULTS.add(new Setting(
+                LineageSettings.Global.POWER_NOTIFICATIONS_RINGTONE,
+                "R.string.def_power_notifications_ringtone"));
+        GLOBAL_SETTINGS_DEFAULTS.add(new Setting(
+                LineageSettings.Global.WEATHER_TEMPERATURE_UNIT,
+                "R.integer.def_temperature_unit"));
     }
-    */
 
     @Override
     protected void setUp() throws Exception {
@@ -196,13 +217,13 @@ public class LineageSettingsProviderDefaultsTest extends AndroidTestCase {
         switch (table) {
             case LineageDatabaseHelper.LineageTableNames.TABLE_SYSTEM:
                 return LineageSettings.System.getIntForUser(mContentResolver, setting.mKey,
-                        UserHandle.USER_SYSTEM);
+                        UserHandle.USER_OWNER);
             case LineageDatabaseHelper.LineageTableNames.TABLE_SECURE:
                 return LineageSettings.Secure.getIntForUser(mContentResolver, setting.mKey,
-                        UserHandle.USER_SYSTEM);
+                        UserHandle.USER_OWNER);
             case LineageDatabaseHelper.LineageTableNames.TABLE_GLOBAL:
                 return LineageSettings.Global.getIntForUser(mContentResolver, setting.mKey,
-                        UserHandle.USER_SYSTEM);
+                        UserHandle.USER_OWNER);
             default:
                 throw new AssertionError("Invalid or empty table!");
         }
@@ -213,13 +234,13 @@ public class LineageSettingsProviderDefaultsTest extends AndroidTestCase {
         switch (table) {
             case LineageDatabaseHelper.LineageTableNames.TABLE_SYSTEM:
                 return LineageSettings.System.getStringForUser(mContentResolver, setting.mKey,
-                        UserHandle.USER_SYSTEM);
+                        UserHandle.USER_OWNER);
             case LineageDatabaseHelper.LineageTableNames.TABLE_SECURE:
                 return LineageSettings.Secure.getStringForUser(mContentResolver, setting.mKey,
-                        UserHandle.USER_SYSTEM);
+                        UserHandle.USER_OWNER);
             case LineageDatabaseHelper.LineageTableNames.TABLE_GLOBAL:
                 return LineageSettings.Global.getStringForUser(mContentResolver, setting.mKey,
-                        UserHandle.USER_SYSTEM);
+                        UserHandle.USER_OWNER);
             default:
                 throw new AssertionError("Invalid or empty table!");
         }

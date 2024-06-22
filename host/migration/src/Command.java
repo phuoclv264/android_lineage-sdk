@@ -54,6 +54,9 @@ public class Command implements Runnable {
                 }
                 break;
             case SettingsConstants.SECURE:
+                if (SettingsConstants.Ignorables.SECURE_SETTINGS.contains(setting.getKey())) {
+                    return true;
+                }
                 if (!LineageSettings.Secure.isLegacySetting(setting.getKey())) {
                     return true;
                 }

@@ -69,7 +69,7 @@ import java.util.Map;
      @MediumTest
      public void testMigrateLineageSettingsForOtherUser() {
          // Make sure there's an owner
-         assertTrue(findUser(mUserManager, UserHandle.USER_SYSTEM));
+         assertTrue(findUser(mUserManager, UserHandle.USER_OWNER));
 
          mGuest = mUserManager.createGuest(mContext, "GuestUser1");
          assertNotNull(mGuest);

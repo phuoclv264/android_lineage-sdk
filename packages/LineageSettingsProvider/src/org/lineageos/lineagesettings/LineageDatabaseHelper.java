@@ -1,6 +1,6 @@
 /**
- * Copyright (C) 2015-2016 The CyanogenMod Project
- *               2017-2022 The LineageOS Project
+ * Copyright (c) 2015, The CyanogenMod Project
+ * Copyright (c) 2017, The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,8 @@
 
 package org.lineageos.lineagesettings;
 
-import android.Manifest;
-import android.app.AppGlobals;
 import android.content.Context;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.UserInfo;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -30,13 +26,9 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDoneException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteStatement;
-import android.net.ConnectivitySettingsManager;
 import android.os.Environment;
-import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
-import android.os.UserManager;
-import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -46,10 +38,6 @@ import lineageos.providers.LineageSettings;
 import org.lineageos.internal.util.FileUtils;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * The LineageDatabaseHelper allows creation of a database to store Lineage specific settings for a user
@@ -60,7 +48,7 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
     private static final boolean LOCAL_LOGV = false;
 
     private static final String DATABASE_NAME = "lineagesettings.db";
-    private static final int DATABASE_VERSION = 16;
+    private static final int DATABASE_VERSION = 13;
 
     private static final String DATABASE_NAME_OLD = "cmsettings.db";
 
@@ -94,7 +82,7 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
      * @return The database path string
      */
     private static String dbNameForUser(Context context, int userId, String baseName) {
-        if (userId == UserHandle.USER_SYSTEM) {
+        if (userId == UserHandle.USER_OWNER) {
             return context.getDatabasePath(baseName).getPath();
         } else {
             // Place the database in the user-specific data tree so that it's
@@ -177,7 +165,7 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
             createDbTable(db, LineageTableNames.TABLE_SYSTEM);
             createDbTable(db, LineageTableNames.TABLE_SECURE);
 
-            if (mUserHandle == UserHandle.USER_SYSTEM) {
+            if (mUserHandle == UserHandle.USER_OWNER) {
                 createDbTable(db, LineageTableNames.TABLE_GLOBAL);
             }
 
@@ -223,9 +211,18 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
         }
 
         if (upgradeVersion < 3) {
-            /* Was set LineageSettings.Secure.PROTECTED_COMPONENT_MANAGERS
-             * but this is no longer used
-             */
+            db.beginTransaction();
+            SQLiteStatement stmt = null;
+            try {
+                stmt = db.compileStatement("INSERT INTO secure(name,value)"
+                        + " VALUES(?,?);");
+                loadStringSetting(stmt, LineageSettings.Secure.PROTECTED_COMPONENT_MANAGERS,
+                        R.string.def_protected_component_managers);
+                db.setTransactionSuccessful();
+            } finally {
+                if (stmt != null) stmt.close();
+                db.endTransaction();
+            }
             upgradeVersion = 3;
         }
 
@@ -237,16 +234,31 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
         }
 
         if (upgradeVersion < 5) {
-            /* Was set LineageSettings.Global.WEATHER_TEMPERATURE_UNIT
-             * but this is no longer used
-             */
+            if (mUserHandle == UserHandle.USER_OWNER) {
+                db.beginTransaction();
+                SQLiteStatement stmt = null;
+                try {
+                    stmt = db.compileStatement("INSERT INTO global(name,value)"
+                            + " VALUES(?,?);");
+                    loadIntegerSetting(stmt, LineageSettings.Global.WEATHER_TEMPERATURE_UNIT,
+                            R.integer.def_temperature_unit);
+                    db.setTransactionSuccessful();
+                } finally {
+                    if (stmt != null) stmt.close();
+                    db.endTransaction();
+                }
+            }
             upgradeVersion = 5;
         }
 
         if (upgradeVersion < 6) {
-            /* Was move LineageSettings.Secure.DEV_FORCE_SHOW_NAVBAR to global
-             * but this is no longer used
-             */
+            // Move force_show_navbar to global
+            if (mUserHandle == UserHandle.USER_OWNER) {
+                moveSettingsToNewTable(db, LineageTableNames.TABLE_SECURE,
+                        LineageTableNames.TABLE_GLOBAL, new String[] {
+                        LineageSettings.Secure.DEV_FORCE_SHOW_NAVBAR
+                }, true);
+            }
             upgradeVersion = 6;
         }
 
@@ -277,9 +289,19 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
         }
 
         if (upgradeVersion < 8) {
-            /* Was set LineageSettings.Secure.PROTECTED_COMPONENT_MANAGERS
-             * but this is no longer used
-             */
+            db.beginTransaction();
+            SQLiteStatement stmt = null;
+            try {
+                stmt = db.compileStatement("UPDATE secure SET value=? WHERE name=?");
+                stmt.bindString(1, mContext.getResources()
+                        .getString(R.string.def_protected_component_managers));
+                stmt.bindString(2, LineageSettings.Secure.PROTECTED_COMPONENT_MANAGERS);
+                stmt.execute();
+                db.setTransactionSuccessful();
+            } finally {
+                if (stmt != null) stmt.close();
+                db.endTransaction();
+            }
             upgradeVersion = 8;
         }
 
@@ -321,14 +343,50 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
                     if (stmt != null) stmt.close();
                     db.endTransaction();
                 }
+
+                // Remove LINEAGE_SETUP_WIZARD_COMPLETED
+                db.beginTransaction();
+                stmt = null;
+                try {
+                    stmt = db.compileStatement("DELETE FROM secure WHERE name=?");
+                    stmt.bindString(1, LineageSettings.Secure.LINEAGE_SETUP_WIZARD_COMPLETED);
+                    stmt.execute();
+                    db.setTransactionSuccessful();
+                } finally {
+                    if (stmt != null) stmt.close();
+                    db.endTransaction();
+                }
             }
             upgradeVersion = 10;
         }
 
         if (upgradeVersion < 11) {
-            /* Was move LineageSettings.Global.DEV_FORCE_SHOW_NAVBAR to system
-             * but this is no longer used
-             */
+            // Move force_show_navbar to system
+            if (mUserHandle == UserHandle.USER_OWNER) {
+                db.beginTransaction();
+                SQLiteStatement stmt = null;
+                try {
+                    stmt = db.compileStatement("SELECT value FROM global WHERE name=?");
+                    stmt.bindString(1, LineageSettings.Global.DEV_FORCE_SHOW_NAVBAR);
+                    long value = stmt.simpleQueryForLong();
+
+                    stmt = db.compileStatement("INSERT INTO system (name, value) VALUES (?, ?)");
+                    stmt.bindString(1, LineageSettings.System.FORCE_SHOW_NAVBAR);
+                    stmt.bindLong(2, value);
+                    stmt.execute();
+
+                    stmt = db.compileStatement("DELETE FROM global WHERE name=?");
+                    stmt.bindString(1, LineageSettings.Global.DEV_FORCE_SHOW_NAVBAR);
+                    stmt.execute();
+
+                    db.setTransactionSuccessful();
+                } catch (SQLiteDoneException ex) {
+                    // LineageSettings.Global.DEV_FORCE_SHOW_NAVBAR is not set
+                } finally {
+                    if (stmt != null) stmt.close();
+                    db.endTransaction();
+                }
+            }
             upgradeVersion = 11;
         }
 
@@ -370,62 +428,62 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
         }
 
         if (upgradeVersion < 13) {
-            /* Was used to migrate LineageSettings.Global.POWER_NOTIFICATIONS_RINGTONE,
-             * but this setting has been deprecated
-             */
+            // Update custom charging sound setting
+            if (mUserHandle == UserHandle.USER_OWNER) {
+                db.beginTransaction();
+                SQLiteStatement stmt = null;
+                try {
+                    stmt = db.compileStatement("UPDATE global SET value=? WHERE name=?");
+                    stmt.bindString(1, mContext.getResources()
+                            .getString(R.string.def_power_notifications_ringtone));
+                    stmt.bindString(2, LineageSettings.Global.POWER_NOTIFICATIONS_RINGTONE);
+                    stmt.execute();
+                    db.setTransactionSuccessful();
+                } finally {
+                    if (stmt != null) stmt.close();
+                    db.endTransaction();
+                }
+            }
             upgradeVersion = 13;
         }
+        // *** Remember to update DATABASE_VERSION above!
+    }
 
-        if (upgradeVersion < 14) {
-            // Update button/keyboard brightness range
+    @Override
+    public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion){
+        if (LOCAL_LOGV) Log.d(TAG, "Downgrading from version: " + oldVersion + " to " + newVersion);
+
+        if(oldVersion == 14) {
             if (mUserHandle == UserHandle.USER_OWNER) {
                 for (String key : new String[] {
-                    LineageSettings.Secure.BUTTON_BRIGHTNESS,
-                    LineageSettings.Secure.KEYBOARD_BRIGHTNESS,
+                    LineageSettings.System.STATUS_BAR_CLOCK,
+                    LineageSettings.System.STATUS_BAR_BATTERY_STYLE,
                 }) {
                     db.beginTransaction();
                     SQLiteStatement stmt = null;
                     try {
-                        stmt = db.compileStatement(
-                                "UPDATE secure SET value=round(value / 255.0, 2) WHERE name=?");
-                        stmt.bindString(1, key);
+                        stmt = db.compileStatement("UPDATE system SET value=? WHERE name=?");
+                        if(key == LineageSettings.System.STATUS_BAR_CLOCK){
+                        // Update STATUS_BAR_CLOCK because was centered by db 14 before (not in code anymore)
+                            stmt.bindLong(1, 2);
+                            stmt.bindString(2, key);
+			} else {
+                        // Update STATUS_BAR_BATTERY_STYLE because was centered by db 14 before (not in code anymore)
+                            stmt.bindLong(1, 0);
+                            stmt.bindString(2, key);
+                        }
                         stmt.execute();
                         db.setTransactionSuccessful();
                     } catch (SQLiteDoneException ex) {
-                        // key is not set
+                        // LineageSettings.System.STATUS_BAR_CLOCK is not set
+			//                       OR
+                        // LineageSettings.System.STATUS_BAR_BATTERY_STYLE is not set
                     } finally {
                         if (stmt != null) stmt.close();
                         db.endTransaction();
                     }
                 }
             }
-            upgradeVersion = 14;
-        }
-
-        if (upgradeVersion < 15) {
-            if (mUserHandle == UserHandle.USER_OWNER) {
-                loadRestrictedNetworkingModeSetting();
-            }
-            upgradeVersion = 15;
-        }
-
-        if (upgradeVersion < 16) {
-            // Move trust_restrict_usb to global
-            if (mUserHandle == UserHandle.USER_OWNER) {
-                moveSettingsToNewTable(db, LineageTableNames.TABLE_SECURE,
-                        LineageTableNames.TABLE_GLOBAL, new String[] {
-                        LineageSettings.Global.TRUST_RESTRICT_USB
-                }, true);
-            }
-            upgradeVersion = 16;
-        }
-        // *** Remember to update DATABASE_VERSION above!
-        if (upgradeVersion != newVersion) {
-            Log.wtf(TAG, "warning: upgrading settings database to version "
-                            + newVersion + " left it at "
-                            + upgradeVersion +
-                            " instead; this is probably a bug. Did you update DATABASE_VERSION?",
-                    new RuntimeException("db upgrade error"));
         }
     }
 
@@ -486,7 +544,7 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
         loadSystemSettings(db);
         loadSecureSettings(db);
         // The global table only exists for the 'owner' user
-        if (mUserHandle == UserHandle.USER_SYSTEM) {
+        if (mUserHandle == UserHandle.USER_OWNER) {
             loadGlobalSettings(db);
         }
     }
@@ -497,14 +555,18 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
             stmt = db.compileStatement("INSERT OR IGNORE INTO secure(name,value)"
                     + " VALUES(?,?);");
             // Secure
+            loadBooleanSetting(stmt, LineageSettings.Secure.ADVANCED_MODE,
+                    R.bool.def_advanced_mode);
+
             loadBooleanSetting(stmt, LineageSettings.Secure.STATS_COLLECTION,
                     R.bool.def_stats_collection);
 
             loadBooleanSetting(stmt, LineageSettings.Secure.LOCKSCREEN_VISUALIZER_ENABLED,
                     R.bool.def_lockscreen_visualizer);
 
-            loadBooleanSetting(stmt, LineageSettings.Secure.VOLUME_PANEL_ON_LEFT,
-                    R.bool.def_volume_panel_on_left);
+            loadStringSetting(stmt,
+                    LineageSettings.Secure.PROTECTED_COMPONENT_MANAGERS,
+                    R.string.def_protected_component_managers);
         } finally {
             if (stmt != null) stmt.close();
         }
@@ -537,6 +599,15 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
             loadBooleanSetting(stmt, LineageSettings.System.SYSTEM_PROFILES_ENABLED,
                     R.bool.def_profiles_enabled);
 
+            loadIntegerSetting(stmt, LineageSettings.System.ENABLE_FORWARD_LOOKUP,
+                    R.integer.def_forward_lookup);
+
+            loadIntegerSetting(stmt, LineageSettings.System.ENABLE_PEOPLE_LOOKUP,
+                    R.integer.def_people_lookup);
+
+            loadIntegerSetting(stmt, LineageSettings.System.ENABLE_REVERSE_LOOKUP,
+                    R.integer.def_reverse_lookup);
+
             loadBooleanSetting(stmt, LineageSettings.System.NOTIFICATION_LIGHT_PULSE_CUSTOM_ENABLE,
                     R.bool.def_notification_pulse_custom_enable);
 
@@ -564,31 +635,22 @@ public class LineageDatabaseHelper extends SQLiteOpenHelper{
             stmt = db.compileStatement("INSERT OR IGNORE INTO global(name,value)"
                     + " VALUES(?,?);");
             // Global
-            loadRestrictedNetworkingModeSetting();
+            loadBooleanSetting(stmt,
+                    LineageSettings.Global.POWER_NOTIFICATIONS_ENABLED,
+                    R.bool.def_power_notifications_enabled);
+
+            loadBooleanSetting(stmt,
+                    LineageSettings.Global.POWER_NOTIFICATIONS_VIBRATE,
+                    R.bool.def_power_notifications_vibrate);
+
+            loadStringSetting(stmt,
+                    LineageSettings.Global.POWER_NOTIFICATIONS_RINGTONE,
+                    R.string.def_power_notifications_ringtone);
+
+            loadIntegerSetting(stmt, LineageSettings.Global.WEATHER_TEMPERATURE_UNIT,
+                    R.integer.def_temperature_unit);
         } finally {
             if (stmt != null) stmt.close();
-        }
-    }
-
-    private void loadRestrictedNetworkingModeSetting() {
-        Settings.Global.putInt(mContext.getContentResolver(),
-                Settings.Global.RESTRICTED_NETWORKING_MODE, 1);
-        try {
-            List<PackageInfo> packages = new ArrayList<>();
-            for (UserInfo userInfo : UserManager.get(mContext).getAliveUsers()) {
-                packages.addAll(
-                        AppGlobals.getPackageManager().getPackagesHoldingPermissions(
-                                new String[]{Manifest.permission.INTERNET},
-                                PackageManager.MATCH_UNINSTALLED_PACKAGES,
-                                userInfo.id
-                        ).getList());
-            }
-            Set<Integer> uids = packages.stream().map(
-                    packageInfo -> packageInfo.applicationInfo.uid)
-                    .collect(Collectors.toSet());
-            ConnectivitySettingsManager.setUidsAllowedOnRestrictedNetworks(mContext, uids);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to set uids allowed on restricted networks");
         }
     }
 

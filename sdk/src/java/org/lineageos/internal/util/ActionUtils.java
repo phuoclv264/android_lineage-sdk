@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021 The LineageOS Project
+ * Copyright (C) 2018-2019 The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,24 +17,17 @@
 package org.lineageos.internal.util;
 
 import android.app.ActivityManager;
+import android.app.ActivityManager.StackInfo;
 import android.app.ActivityManagerNative;
 import android.app.ActivityOptions;
-import android.app.ActivityTaskManager;
-import android.app.ActivityTaskManager.RootTaskInfo;
 import android.app.IActivityManager;
-import android.app.IActivityTaskManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
-import android.widget.Toast;
-
-import org.lineageos.platform.internal.R;
 
 import java.util.List;
 
@@ -45,6 +38,7 @@ public class ActionUtils {
 
     /**
      * Kills the top most / most recent user application, but leaves out the launcher.
+     * This is function governed by {@link Settings.Secure.KILL_APP_LONGPRESS_BACK}.
      *
      * @param context the current context, used to retrieve the package manager.
      * @param userId the ID of the currently active user
@@ -61,12 +55,6 @@ public class ActionUtils {
 
     private static boolean killForegroundAppInternal(Context context, int userId)
             throws RemoteException {
-        final IActivityTaskManager atm = ActivityTaskManager.getService();
-
-        if (atm.getLockTaskModeState() == ActivityManager.LOCK_TASK_MODE_PINNED) {
-            return false;
-        }
-
         final String packageName = getForegroundTaskPackageName(context, userId);
 
         if (packageName == null) {
@@ -75,10 +63,6 @@ public class ActionUtils {
 
         final IActivityManager am = ActivityManagerNative.getDefault();
         am.forceStopPackage(packageName, UserHandle.USER_CURRENT);
-
-        new Handler(Looper.getMainLooper()).post(() -> {
-            Toast.makeText(context, R.string.app_killed_message, Toast.LENGTH_SHORT).show();
-        });
 
         return true;
     }
@@ -145,7 +129,7 @@ public class ActionUtils {
             throws RemoteException {
         final String defaultHomePackage = resolveCurrentLauncherPackage(context, userId);
         final IActivityManager am = ActivityManager.getService();
-        final RootTaskInfo focusedStack = am.getFocusedRootTaskInfo();
+        final StackInfo focusedStack = am.getFocusedStackInfo();
 
         if (focusedStack == null || focusedStack.topActivity == null) {
             return null;

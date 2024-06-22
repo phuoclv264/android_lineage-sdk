@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2015-2016 The CyanogenMod Project
- *               2017-2022 The LineageOS Project
+ *               2017-2019 The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,11 +39,8 @@ import vendor.lineage.livedisplay.V2_0.IDisplayModes;
 import vendor.lineage.livedisplay.V2_0.IPictureAdjustment;
 import vendor.lineage.livedisplay.V2_0.IReadingEnhancement;
 import vendor.lineage.livedisplay.V2_0.ISunlightEnhancement;
-import vendor.lineage.livedisplay.V2_1.IAntiFlicker;
 import vendor.lineage.touch.V1_0.IGloveMode;
-import vendor.lineage.touch.V1_0.IHighTouchPollingRate;
 import vendor.lineage.touch.V1_0.IKeyDisabler;
-import vendor.lineage.touch.V1_0.IKeySwapper;
 import vendor.lineage.touch.V1_0.IStylusMode;
 import vendor.lineage.touch.V1_0.ITouchscreenGesture;
 
@@ -89,12 +86,6 @@ public final class LineageHardwareManager {
     public static final int FEATURE_DISPLAY_COLOR_CALIBRATION = 0x4;
 
     /**
-     * High Touch Polling Rate
-     */
-    @VisibleForTesting
-    public static final int FEATURE_HIGH_TOUCH_POLLING_RATE = 0x8;
-
-    /**
      * High touch sensitivity for touch panels
      */
     @VisibleForTesting
@@ -105,12 +96,6 @@ public final class LineageHardwareManager {
      */
     @VisibleForTesting
     public static final int FEATURE_KEY_DISABLE = 0x20;
-
-    /**
-     * Hardware navigation key swapping
-     */
-    @VisibleForTesting
-    public static final int FEATURE_KEY_SWAP = 0x40;
 
     /**
      * Increased display readability in bright light
@@ -166,21 +151,12 @@ public final class LineageHardwareManager {
     @VisibleForTesting
     public static final int FEATURE_TOUCHSCREEN_GESTURES = 0x80000;
 
-    /**
-     * Anti flicker mode
-     */
-    @VisibleForTesting
-    public static final int FEATURE_ANTI_FLICKER = 0x200000;
-
     private static final List<Integer> BOOLEAN_FEATURES = Arrays.asList(
         FEATURE_ADAPTIVE_BACKLIGHT,
-        FEATURE_ANTI_FLICKER,
         FEATURE_AUTO_CONTRAST,
         FEATURE_COLOR_ENHANCEMENT,
-        FEATURE_HIGH_TOUCH_POLLING_RATE,
         FEATURE_HIGH_TOUCH_SENSITIVITY,
         FEATURE_KEY_DISABLE,
-        FEATURE_KEY_SWAP,
         FEATURE_SUNLIGHT_ENHANCEMENT,
         FEATURE_TOUCH_HOVERING,
         FEATURE_READING_ENHANCEMENT
@@ -288,8 +264,6 @@ public final class LineageHardwareManager {
             switch (feature) {
                 case FEATURE_ADAPTIVE_BACKLIGHT:
                     return IAdaptiveBacklight.getService(true);
-                case FEATURE_ANTI_FLICKER:
-                    return IAntiFlicker.getService(true);
                 case FEATURE_AUTO_CONTRAST:
                     return IAutoContrast.getService(true);
                 case FEATURE_COLOR_BALANCE:
@@ -306,14 +280,10 @@ public final class LineageHardwareManager {
                     return IReadingEnhancement.getService(true);
                 case FEATURE_SUNLIGHT_ENHANCEMENT:
                     return ISunlightEnhancement.getService(true);
-                case FEATURE_HIGH_TOUCH_POLLING_RATE:
-                    return IHighTouchPollingRate.getService(true);
                 case FEATURE_HIGH_TOUCH_SENSITIVITY:
                     return IGloveMode.getService(true);
                 case FEATURE_KEY_DISABLE:
                     return IKeyDisabler.getService(true);
-                case FEATURE_KEY_SWAP:
-                    return IKeySwapper.getService(true);
                 case FEATURE_TOUCH_HOVERING:
                     return IStylusMode.getService(true);
                 case FEATURE_TOUCHSCREEN_GESTURES:
@@ -365,27 +335,18 @@ public final class LineageHardwareManager {
                     case FEATURE_ADAPTIVE_BACKLIGHT:
                         IAdaptiveBacklight adaptiveBacklight = (IAdaptiveBacklight) obj;
                         return adaptiveBacklight.isEnabled();
-                    case FEATURE_ANTI_FLICKER:
-                        IAntiFlicker antiFlicker = (IAntiFlicker) obj;
-                        return antiFlicker.isEnabled();
                     case FEATURE_AUTO_CONTRAST:
                         IAutoContrast autoContrast = (IAutoContrast) obj;
                         return autoContrast.isEnabled();
                     case FEATURE_COLOR_ENHANCEMENT:
                         IColorEnhancement colorEnhancement = (IColorEnhancement) obj;
                         return colorEnhancement.isEnabled();
-                    case FEATURE_HIGH_TOUCH_POLLING_RATE:
-                        IHighTouchPollingRate highTouchPollingRate = (IHighTouchPollingRate) obj;
-                        return highTouchPollingRate.isEnabled();
                     case FEATURE_HIGH_TOUCH_SENSITIVITY:
                         IGloveMode gloveMode = (IGloveMode) obj;
                         return gloveMode.isEnabled();
                     case FEATURE_KEY_DISABLE:
                         IKeyDisabler keyDisabler = (IKeyDisabler) obj;
                         return keyDisabler.isEnabled();
-                    case FEATURE_KEY_SWAP:
-                        IKeySwapper keySwapper = (IKeySwapper) obj;
-                        return keySwapper.isEnabled();
                     case FEATURE_SUNLIGHT_ENHANCEMENT:
                         ISunlightEnhancement sunlightEnhancement = (ISunlightEnhancement) obj;
                         return sunlightEnhancement.isEnabled();
@@ -426,27 +387,18 @@ public final class LineageHardwareManager {
                     case FEATURE_ADAPTIVE_BACKLIGHT:
                         IAdaptiveBacklight adaptiveBacklight = (IAdaptiveBacklight) obj;
                         return adaptiveBacklight.setEnabled(enable);
-                    case FEATURE_ANTI_FLICKER:
-                        IAntiFlicker antiFlicker = (IAntiFlicker) obj;
-                        return antiFlicker.setEnabled(enable);
                     case FEATURE_AUTO_CONTRAST:
                         IAutoContrast autoContrast = (IAutoContrast) obj;
                         return autoContrast.setEnabled(enable);
                     case FEATURE_COLOR_ENHANCEMENT:
                         IColorEnhancement colorEnhancement = (IColorEnhancement) obj;
                         return colorEnhancement.setEnabled(enable);
-                    case FEATURE_HIGH_TOUCH_POLLING_RATE:
-                        IHighTouchPollingRate highTouchPollingRate = (IHighTouchPollingRate) obj;
-                        return highTouchPollingRate.setEnabled(enable);
                     case FEATURE_HIGH_TOUCH_SENSITIVITY:
                         IGloveMode gloveMode = (IGloveMode) obj;
                         return gloveMode.setEnabled(enable);
                     case FEATURE_KEY_DISABLE:
                         IKeyDisabler keyDisabler = (IKeyDisabler) obj;
                         return keyDisabler.setEnabled(enable);
-                    case FEATURE_KEY_SWAP:
-                        IKeySwapper keySwapper = (IKeySwapper) obj;
-                        return keySwapper.setEnabled(enable);
                     case FEATURE_SUNLIGHT_ENHANCEMENT:
                         ISunlightEnhancement sunlightEnhancement = (ISunlightEnhancement) obj;
                         return sunlightEnhancement.setEnabled(enable);

@@ -1,6 +1,6 @@
 /**
- * Copyright (C) 2015 The CyanogenMod Project
- *               2019-2022 The LineageOS Project
+ * Copyright (c) 2015, The CyanogenMod Project
+ * Copyright (C) 2019 The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -318,6 +318,62 @@ public final class LineageSettings {
         public static final String PROXIMITY_ON_WAKE = "proximity_on_wake";
 
         /**
+         * Enable looking up of phone numbers of nearby places
+         *
+         * @hide
+         */
+        public static final String ENABLE_FORWARD_LOOKUP = "enable_forward_lookup";
+
+        /**
+         * Enable looking up of phone numbers of people
+         *
+         * @hide
+         */
+        public static final String ENABLE_PEOPLE_LOOKUP = "enable_people_lookup";
+
+        /**
+         * Enable looking up of information of phone numbers not in the contacts
+         *
+         * @hide
+         */
+        public static final String ENABLE_REVERSE_LOOKUP = "enable_reverse_lookup";
+
+        /**
+         * The forward lookup provider
+         *
+         * @hide
+         */
+        public static final String FORWARD_LOOKUP_PROVIDER = "forward_lookup_provider";
+
+        /**
+         * The people lookup provider
+         *
+         * @hide
+         */
+        public static final String PEOPLE_LOOKUP_PROVIDER = "people_lookup_provider";
+
+        /**
+         * The reverse lookup provider
+         *
+         * @hide
+         */
+        public static final String REVERSE_LOOKUP_PROVIDER = "reverse_lookup_provider";
+
+        /**
+         * The OpenCNAM paid account ID
+         *
+         * @hide
+         */
+        public static final String DIALER_OPENCNAM_ACCOUNT_SID = "dialer_opencnam_account_sid";
+
+        /**
+         * The OpenCNAM authentication token
+         *
+         * @hide
+         */
+        public static final String DIALER_OPENCNAM_AUTH_TOKEN = "dialer_opencnam_auth_token";
+
+        /**
          * Whether wifi settings will connect to access point automatically
          * 0 = automatically
          * 1 = manually
@@ -350,6 +406,12 @@ public final class LineageSettings {
         public static final String DISPLAY_AUTO_OUTDOOR_MODE = "display_auto_outdoor_mode";
 
         /**
+         * Use display power saving features such as CABC or CABL
+         * @hide
+         */
+        public static final String DISPLAY_LOW_POWER = "display_low_power";
+
+        /**
          * Use color enhancement feature of display
          * @hide
          */
@@ -372,6 +434,12 @@ public final class LineageSettings {
          * @hide
          */
         public static final String DOUBLE_TAP_SLEEP_GESTURE = "double_tap_sleep_gesture";
+
+        /**
+         * Boolean value on whether to show weather in the statusbar
+         * @hide
+         */
+        public static final String STATUS_BAR_SHOW_WEATHER = "status_bar_show_weather";
 
         /**
          * Show search bar in recents
@@ -452,6 +520,12 @@ public final class LineageSettings {
          * @hide
          */
         public static final String USE_EDGE_SERVICE_FOR_GESTURES = "edge_service_for_gestures";
+
+        /**
+         * Show the pending notification counts as overlays on the status bar
+         * @hide
+         */
+        public static final String STATUS_BAR_NOTIF_COUNT = "status_bar_notif_count";
 
         /**
          * Call recording format value
@@ -585,14 +659,24 @@ public final class LineageSettings {
                 LineageSettings.System.BATTERY_LIGHT_FULL_COLOR,
                 LineageSettings.System.ENABLE_MWI_NOTIFICATION,
                 LineageSettings.System.PROXIMITY_ON_WAKE,
+                LineageSettings.System.ENABLE_FORWARD_LOOKUP,
+                LineageSettings.System.ENABLE_PEOPLE_LOOKUP,
+                LineageSettings.System.ENABLE_REVERSE_LOOKUP,
+                LineageSettings.System.FORWARD_LOOKUP_PROVIDER,
+                LineageSettings.System.PEOPLE_LOOKUP_PROVIDER,
+                LineageSettings.System.REVERSE_LOOKUP_PROVIDER,
+                LineageSettings.System.DIALER_OPENCNAM_ACCOUNT_SID,
+                LineageSettings.System.DIALER_OPENCNAM_AUTH_TOKEN,
                 LineageSettings.System.DISPLAY_TEMPERATURE_DAY,
                 LineageSettings.System.DISPLAY_TEMPERATURE_NIGHT,
                 LineageSettings.System.DISPLAY_TEMPERATURE_MODE,
                 LineageSettings.System.DISPLAY_AUTO_OUTDOOR_MODE,
+                LineageSettings.System.DISPLAY_LOW_POWER,
                 LineageSettings.System.DISPLAY_COLOR_ENHANCE,
                 LineageSettings.System.DISPLAY_COLOR_ADJUSTMENT,
                 LineageSettings.System.LIVE_DISPLAY_HINTED,
                 LineageSettings.System.DOUBLE_TAP_SLEEP_GESTURE,
+                LineageSettings.System.STATUS_BAR_SHOW_WEATHER,
                 LineageSettings.System.RECENTS_SHOW_SEARCH_BAR,
                 LineageSettings.System.NAVBAR_LEFT_IN_LANDSCAPE,
                 LineageSettings.System.T9_SEARCH_INPUT_LOCALE,
@@ -606,6 +690,7 @@ public final class LineageSettings {
                 LineageSettings.System.VOLBTN_MUSIC_CONTROLS,
                 LineageSettings.System.SWAP_VOLUME_KEYS_ON_ROTATION,
                 LineageSettings.System.USE_EDGE_SERVICE_FOR_GESTURES,
+                LineageSettings.System.STATUS_BAR_NOTIF_COUNT,
                 LineageSettings.System.CALL_RECORDING_FORMAT,
                 LineageSettings.System.NOTIFICATION_LIGHT_BRIGHTNESS_LEVEL,
                 LineageSettings.System.NOTIFICATION_LIGHT_SCREEN_ON,
@@ -651,6 +736,13 @@ public final class LineageSettings {
         // region Secure Settings
 
         /**
+         * Whether to enable "advanced mode" for the current user.
+         * Boolean setting. 0 = no, 1 = yes.
+         * @hide
+         */
+        public static final String ADVANCED_MODE = "advanced_mode";
+
+        /**
          * The time in ms to keep the button backlight on after pressing a button.
          * A value of 0 will keep the buttons on for as long as the screen is on.
          * @hide
@@ -664,6 +756,12 @@ public final class LineageSettings {
          * @hide
          */
         public static final String BUTTON_BRIGHTNESS = "button_brightness";
+
+        /**
+         * Developer options - Navigation Bar show switch
+         * @hide
+         */
+        public static final String DEV_FORCE_SHOW_NAVBAR = "dev_force_show_navbar";
 
         /**
          * The keyboard brightness to be used while the screen is on.
@@ -721,6 +819,14 @@ public final class LineageSettings {
         public static final String VOLUME_LINK_NOTIFICATION = "volume_link_notification";
 
         /**
+         * Whether newly installed apps should run with privacy guard by default
+         * @deprecated
+         * @hide
+         */
+        @Deprecated
+        public static final String PRIVACY_GUARD_DEFAULT = "privacy_guard_default";
+
+        /**
          * The global recents long press activity chosen by the user.
          * This setting is stored as a flattened component name as
          * per {@link ComponentName#flattenToString()}.
@@ -758,6 +864,27 @@ public final class LineageSettings {
          */
         public static final int RING_HOME_BUTTON_BEHAVIOR_DEFAULT =
                 RING_HOME_BUTTON_BEHAVIOR_DO_NOTHING;
+
+        /**
+         * When the user has enable the option to have a "bug report" command
+         * in the power menu.
+         * @deprecated Use {@link android.provider.Settings.Global#BUGREPORT_IN_POWER_MENU} instead
+         * @hide
+         */
+        @Deprecated
+        public static final String BUGREPORT_IN_POWER_MENU = "bugreport_in_power_menu";
+
+        /**
+         * Performance profile
+         * @hide
+         */
+        public static final String PERFORMANCE_PROFILE = "performance_profile";
+
+        /**
+         * App-based performance profile selection
+         * @hide
+         */
+        public static final String APP_PERFORMANCE_PROFILES_ENABLED = "app_perf_profiles_enabled";
 
         /**
          * Launch actions for left/right lockscreen targets
@@ -803,6 +930,35 @@ public final class LineageSettings {
                 INCALL_POWER_BUTTON_BEHAVIOR_SCREEN_OFF;
 
         /**
+         * Whether to display the ADB notification.
+         * @hide
+         */
+        public static final String ADB_NOTIFY = "adb_notify";
+
+        /**
+         * The TCP/IP port to run ADB on, or -1 for USB
+         * @hide
+         */
+        public static final String ADB_PORT = "adb_port";
+
+        /**
+         * The hostname for this device
+         * @hide
+         */
+        public static final String DEVICE_HOSTNAME = "device_hostname";
+
+        /**
+         * Whether to allow killing of the foreground app by long-pressing the Back button
+         * @hide
+         */
+        public static final String KILL_APP_LONGPRESS_BACK = "kill_app_longpress_back";
+
+        /** Protected Components
+         * @hide
+         */
+        public static final String PROTECTED_COMPONENTS = "protected_components";
+
+        /**
          * Stored color matrix for LiveDisplay. This is used to allow co-existence with
          * display tuning done by DisplayAdjustmentUtils when hardware support isn't
          * available.
@@ -821,6 +977,7 @@ public final class LineageSettings {
          * @hide
          */
         public static final String[] LEGACY_SECURE_SETTINGS = new String[]{
+                LineageSettings.Secure.ADVANCED_MODE,
                 LineageSettings.Secure.BUTTON_BACKLIGHT_TIMEOUT,
                 LineageSettings.Secure.BUTTON_BRIGHTNESS,
                 LineageSettings.Secure.DEV_FORCE_SHOW_NAVBAR,
@@ -835,11 +992,19 @@ public final class LineageSettings {
                 LineageSettings.Secure.NAVIGATION_RING_TARGETS[1],
                 LineageSettings.Secure.NAVIGATION_RING_TARGETS[2],
                 LineageSettings.Secure.RECENTS_LONG_PRESS_ACTIVITY,
+                LineageSettings.Secure.ADB_NOTIFY,
+                LineageSettings.Secure.ADB_PORT,
+                LineageSettings.Secure.DEVICE_HOSTNAME,
+                LineageSettings.Secure.KILL_APP_LONGPRESS_BACK,
+                LineageSettings.Secure.PROTECTED_COMPONENTS,
                 LineageSettings.Secure.LIVE_DISPLAY_COLOR_MATRIX,
                 LineageSettings.Secure.ADVANCED_REBOOT,
                 LineageSettings.Secure.LOCKSCREEN_TARGETS,
                 LineageSettings.Secure.RING_HOME_BUTTON_BEHAVIOR,
-                LineageSettings.Secure.DEVELOPMENT_SHORTCUT};
+                LineageSettings.Secure.PRIVACY_GUARD_DEFAULT,
+                LineageSettings.Secure.DEVELOPMENT_SHORTCUT,
+                LineageSettings.Secure.PERFORMANCE_PROFILE,
+                LineageSettings.Secure.APP_PERFORMANCE_PROFILES_ENABLED};
 
         /**
          * @hide
@@ -869,6 +1034,24 @@ public final class LineageSettings {
                 BLUETOOTH_A2DP_SRC_PRIORITY_PREFIX = "bluetooth_a2dp_src_priority_";
 
         /**
+         * Whether to sound when charger power is connected/disconnected
+         * @hide
+         */
+        public static final String POWER_NOTIFICATIONS_ENABLED = "power_notifications_enabled";
+
+        /**
+         * Whether to vibrate when charger power is connected/disconnected
+         * @hide
+         */
+        public static final String POWER_NOTIFICATIONS_VIBRATE = "power_notifications_vibrate";
+
+        /**
+         * URI for power notification sounds
+         * @hide
+         */
+        public static final String POWER_NOTIFICATIONS_RINGTONE = "power_notifications_ringtone";
+
+        /**
          * @hide
          */
         public static final String ZEN_DISABLE_DUCKING_DURING_MEDIA_PLAYBACK =
@@ -888,6 +1071,9 @@ public final class LineageSettings {
          */
         public static final String[] LEGACY_GLOBAL_SETTINGS = new String[]{
                 LineageSettings.Global.WAKE_WHEN_PLUGGED_OR_UNPLUGGED,
+                LineageSettings.Global.POWER_NOTIFICATIONS_ENABLED,
+                LineageSettings.Global.POWER_NOTIFICATIONS_VIBRATE,
+                LineageSettings.Global.POWER_NOTIFICATIONS_RINGTONE,
                 LineageSettings.Global.ZEN_DISABLE_DUCKING_DURING_MEDIA_PLAYBACK,
                 LineageSettings.Global.WIFI_AUTO_PRIORITIES_CONFIGURATION};
 

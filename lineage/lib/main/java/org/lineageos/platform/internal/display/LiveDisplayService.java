@@ -128,7 +128,7 @@ public class LiveDisplayService extends LineageSystemService {
         // mHandlerThread.start();
         // mHandler = new Handler(mHandlerThread.getLooper());
 
-        // mTwilightTracker = new TwilightTracker(context);
+        mTwilightTracker = new TwilightTracker(context);
     }
 
     @Override
@@ -150,14 +150,14 @@ public class LiveDisplayService extends LineageSystemService {
     }
 
     private void updateFeatures(final int flags) {
-        // mHandler.post(new Runnable() {
-        //     @Override
-        //     public void run() {
-        //         for (int i = 0; i < mFeatures.size(); i++) {
-        //             mFeatures.get(i).update(flags, mState);
-        //         }
-        //     }
-        // });
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < mFeatures.size(); i++) {
+                    mFeatures.get(i).update(flags, mState);
+                }
+            }
+        });
     }
 
     private final IBinder mBinder = new ILiveDisplayService.Stub() {
@@ -396,9 +396,9 @@ public class LiveDisplayService extends LineageSystemService {
     private final TwilightListener mTwilightListener = new TwilightListener() {
         @Override
         public void onTwilightStateChanged() {
-            // mState.mTwilight = mTwilightTracker.getCurrentState();
-            // updateFeatures(TWILIGHT_CHANGED);
-            // nudge();
+            mState.mTwilight = mTwilightTracker.getCurrentState();
+            updateFeatures(TWILIGHT_CHANGED);
+            nudge();
         }
     };
 
@@ -441,47 +441,47 @@ public class LiveDisplayService extends LineageSystemService {
      * @param state
      */
     private void nudge() {
-        // final TwilightState twilight = mTwilightTracker.getCurrentState();
-        // if (!mAwaitingNudge || twilight == null) {
-        //     return;
-        // }
+        final TwilightState twilight = mTwilightTracker.getCurrentState();
+        if (!mAwaitingNudge || twilight == null) {
+            return;
+        }
 
-        // int counter = getSunsetCounter();
+        int counter = getSunsetCounter();
 
-        // // check if we should send the hint only once after sunset
-        // boolean transition = twilight.isNight() && !mSunset;
-        // mSunset = twilight.isNight();
-        // if (!transition) {
-        //     return;
-        // }
+        // check if we should send the hint only once after sunset
+        boolean transition = twilight.isNight() && !mSunset;
+        mSunset = twilight.isNight();
+        if (!transition) {
+            return;
+        }
 
-        // if (counter <= 0) {
-        //     counter++;
-        //     updateSunsetCounter(counter);
-        // }
-        // if (counter == 0) {
-        //     //show the notification and don't come back here
-        //     final Intent intent = new Intent(LineageSettings.ACTION_LIVEDISPLAY_SETTINGS);
-        //     PendingIntent result = PendingIntent.getActivity(
-        //             mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        //     Notification.Builder builder = new Notification.Builder(mContext)
-        //             .setContentTitle(mContext.getResources().getString(
-        //                     org.lineageos.platform.internal.R.string.live_display_title))
-        //             .setContentText(mContext.getResources().getString(
-        //                     org.lineageos.platform.internal.R.string.live_display_hint))
-        //             .setSmallIcon(org.lineageos.platform.internal.R.drawable.ic_livedisplay_notif)
-        //             .setStyle(new Notification.BigTextStyle().bigText(mContext.getResources()
-        //                      .getString(
-        //                              org.lineageos.platform.internal.R.string.live_display_hint)))
-        //             .setContentIntent(result)
-        //             .setAutoCancel(true);
+        if (counter <= 0) {
+            counter++;
+            updateSunsetCounter(counter);
+        }
+        if (counter == 0) {
+            //show the notification and don't come back here
+            final Intent intent = new Intent(LineageSettings.ACTION_LIVEDISPLAY_SETTINGS);
+            PendingIntent result = PendingIntent.getActivity(
+                    mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+            Notification.Builder builder = new Notification.Builder(mContext)
+                    .setContentTitle(mContext.getResources().getString(
+                            org.lineageos.platform.internal.R.string.live_display_title))
+                    .setContentText(mContext.getResources().getString(
+                            org.lineageos.platform.internal.R.string.live_display_hint))
+                    .setSmallIcon(org.lineageos.platform.internal.R.drawable.ic_livedisplay_notif)
+                    .setStyle(new Notification.BigTextStyle().bigText(mContext.getResources()
+                             .getString(
+                                     org.lineageos.platform.internal.R.string.live_display_hint)))
+                    .setContentIntent(result)
+                    .setAutoCancel(true);
 
-        //     NotificationManager nm =
-        //             (NotificationManager)mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-        //     nm.notifyAsUser(null, 1, builder.build(), UserHandle.CURRENT);
+            NotificationManager nm =
+                    (NotificationManager)mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+            nm.notifyAsUser(null, 1, builder.build(), UserHandle.CURRENT);
 
-        //     updateSunsetCounter(1);
-        // }
+            updateSunsetCounter(1);
+        }
     }
 
     private int getInt(String setting, int defValue) {

@@ -73,12 +73,12 @@ public class LiveDisplayService extends LineageSystemService {
     private static final String TAG = "LiveDisplay";
 
     private final Context mContext;
-    // private final Handler mHandler;
-    // private final ServiceThread mHandlerThread;
+    private final Handler mHandler;
+    private final ServiceThread mHandlerThread;
 
     private DisplayManager mDisplayManager;
     private ModeObserver mModeObserver;
-    // private final TwilightTracker mTwilightTracker;
+    private final TwilightTracker mTwilightTracker;
 
     private boolean mAwaitingNudge = true;
     private boolean mSunset = false;
@@ -303,9 +303,8 @@ public class LiveDisplayService extends LineageSystemService {
 
         @Override
         public boolean isNight() {
-            // final TwilightState twilight = mTwilightTracker.getCurrentState();
-            // return twilight != null && twilight.isNight();
-            return true;
+            final TwilightState twilight = mTwilightTracker.getCurrentState();
+            return twilight != null && twilight.isNight();
         }
     };
 

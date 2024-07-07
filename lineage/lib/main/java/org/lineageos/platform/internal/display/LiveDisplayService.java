@@ -123,10 +123,10 @@ public class LiveDisplayService extends LineageSystemService {
 
         mContext = context;
 
-        mHandlerThread = new ServiceThread(TAG,
-                Process.THREAD_PRIORITY_DEFAULT, false /*allowIo*/);
-        mHandlerThread.start();
-        mHandler = new Handler(mHandlerThread.getLooper());
+        // mHandlerThread = new ServiceThread(TAG,
+        //         Process.THREAD_PRIORITY_DEFAULT, false /*allowIo*/);
+        // mHandlerThread.start();
+        // mHandler = new Handler(mHandlerThread.getLooper());
 
         mTwilightTracker = new TwilightTracker(context);
     }
@@ -143,7 +143,6 @@ public class LiveDisplayService extends LineageSystemService {
 
     @Override
     public void onStart() {
-        publishBinderService(LineageContextConstants.LINEAGE_LIVEDISPLAY_SERVICE, mBinder);
     }
 
     @Override

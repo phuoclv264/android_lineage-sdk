@@ -148,6 +148,76 @@ public class LiveDisplayService extends LineageSystemService {
 
     @Override
     public void onBootPhase(int phase) {
+        if (phase == PHASE_BOOT_COMPLETED) {
+
+            mAwaitingNudge = getSunsetCounter() < 1;
+
+            mDHC = new DisplayHardwareController(mContext, mHandler);
+            mFeatures.add(mDHC);
+
+            mCTC = new ColorTemperatureController(mContext, mHandler, mDHC);
+            mFeatures.add(mCTC);
+
+            mOMC = new OutdoorModeController(mContext, mHandler);
+            mFeatures.add(mOMC);
+
+            mPAC = new PictureAdjustmentController(mContext, mHandler);
+            mFeatures.add(mPAC);
+
+            // Get capabilities, throw out any unused features
+            final BitSet capabilities = new BitSet();
+            for (Iterator<LiveDisplayFeature> it = mFeatures.iterator(); it.hasNext();) {
+                final LiveDisplayFeature feature = it.next();
+                if (!feature.getCapabilities(capabilities)) {
+                    it.remove();
+                }
+            }
+
+            // static config
+            int defaultMode = mContext.getResources().getInteger(
+                    org.lineageos.platform.internal.R.integer.config_defaultLiveDisplayMode);
+
+            mConfig = new LiveDisplayConfig(capabilities, defaultMode,
+                    mCTC.getDefaultDayTemperature(), mCTC.getDefaultNightTemperature(),
+                    mOMC.getDefaultAutoOutdoorMode(), mDHC.getDefaultAutoContrast(),
+                    mDHC.getDefaultCABC(), mDHC.getDefaultColorEnhancement(),
+                    mCTC.getColorTemperatureRange(), mCTC.getColorBalanceRange(),
+                    mPAC.getHueRange(), mPAC.getSaturationRange(),
+                    mPAC.getIntensityRange(), mPAC.getContrastRange(),
+                    mPAC.getSaturationThresholdRange());
+
+            // listeners
+            mDisplayManager = (DisplayManager) getContext().getSystemService(
+                    Context.DISPLAY_SERVICE);
+            mDisplayManager.registerDisplayListener(mDisplayListener, null);
+            mState.mScreenOn = mDisplayManager.getDisplay(
+                    Display.DEFAULT_DISPLAY).getState() == Display.STATE_ON;
+
+            PowerManagerInternal pmi = LocalServices.getService(PowerManagerInternal.class);
+            pmi.registerLowPowerModeObserver(mLowPowerModeListener);
+            // ServiceType does not matter when retrieving global saver mode.
+            mState.mLowPowerMode =
+                    pmi.getLowPowerState(SERVICE_TYPE_DUMMY).globalBatterySaverEnabled;
+
+            mTwilightTracker.registerListener(mTwilightListener, mHandler);
+            mState.mTwilight = mTwilightTracker.getCurrentState();
+
+            if (mConfig.hasModeSupport()) {
+                mModeObserver = new ModeObserver(mHandler);
+                mState.mMode = mModeObserver.getMode();
+            }
+
+            // start and update all features
+            for (int i = 0; i < mFeatures.size(); i++) {
+                mFeatures.get(i).start();
+            }
+
+            updateFeatures(ALL_CHANGED);
+
+            Intent intent = new Intent(lineageos.content.Intent.ACTION_INITIALIZE_LIVEDISPLAY);
+            intent.setPackage("com.android.systemui");
+            mContext.sendBroadcastAsUser(intent, UserHandle.SYSTEM);
+        }
     }
 
     private void updateFeatures(final int flags) {

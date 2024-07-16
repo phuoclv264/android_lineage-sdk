@@ -149,7 +149,7 @@ public class LiveDisplayService extends LineageSystemService {
     @Override
     public void onBootPhase(int phase) {
         if (phase == PHASE_BOOT_COMPLETED) {
-
+            /*
             mAwaitingNudge = getSunsetCounter() < 1;
 
             mDHC = new DisplayHardwareController(mContext, mHandler);
@@ -214,9 +214,10 @@ public class LiveDisplayService extends LineageSystemService {
 
             updateFeatures(ALL_CHANGED);
 
-            // Intent intent = new Intent(lineageos.content.Intent.ACTION_INITIALIZE_LIVEDISPLAY);
-            // intent.setPackage("com.android.systemui");
-            // mContext.sendBroadcastAsUser(intent, UserHandle.SYSTEM);
+            Intent intent = new Intent(lineageos.content.Intent.ACTION_INITIALIZE_LIVEDISPLAY);
+            intent.setPackage("com.android.systemui");
+            mContext.sendBroadcastAsUser(intent, UserHandle.SYSTEM);
+            */
         }
     }
 
